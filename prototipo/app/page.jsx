@@ -636,15 +636,15 @@ function LoginModal({ onClose, onLogin }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [data, setData] = useState({
-    name: initialFamily.parentName,
-    email: initialFamily.email,
-    whatsapp: initialFamily.whatsapp,
+    name: "",
+    email: "",
+    whatsapp: "",
     password: "",
     passwordConfirm: "",
-    childName: initialFamily.childName,
-    childAge: initialFamily.childAge,
-    reason: initialFamily.reason,
-    specialty: "Dificultades de aprendizaje",
+    childName: "",
+    childAge: "",
+    reason: "",
+    specialty: "",
     licenseNumber: "",
     province: "Buenos Aires",
     internalCode: "",
@@ -655,11 +655,16 @@ function LoginModal({ onClose, onLogin }) {
     setMessage("");
     setData((currentData) => ({
       ...currentData,
-      name: profile.id === "family" ? initialFamily.parentName : profile.title,
-      email: profile.email,
-      whatsapp: profile.id === "family" ? initialFamily.whatsapp : "",
+      name: "",
+      email: "",
+      whatsapp: "",
       password: "",
       passwordConfirm: "",
+      childName: "",
+      childAge: "",
+      reason: "",
+      specialty: "",
+      licenseNumber: "",
     }));
   }
 
@@ -668,8 +673,13 @@ function LoginModal({ onClose, onLogin }) {
   }
 
   async function submitAccess() {
-    if (!data.name || !data.email || !data.password) {
-      setMessage("Completa nombre, email y clave para continuar.");
+    if (!data.email || !data.password) {
+      setMessage("Completa correo y contrasena para continuar.");
+      return;
+    }
+
+    if (mode === "register" && !data.name) {
+      setMessage("Completa el nombre completo para registrarte.");
       return;
     }
 
@@ -718,12 +728,12 @@ function LoginModal({ onClose, onLogin }) {
           {mode === "register" && (
             <label className="field">
               <span>Nombre completo</span>
-              <input value={data.name} onChange={(event) => updateData("name", event.target.value)} />
+              <input value={data.name} onChange={(event) => updateData("name", event.target.value)} placeholder="Ej: Enzo Ramos" />
             </label>
           )}
           <label className="field">
             <span>Correo electronico</span>
-            <input type="email" value={data.email} onChange={(event) => updateData("email", event.target.value)} />
+            <input type="email" value={data.email} onChange={(event) => updateData("email", event.target.value)} placeholder="Ej: enzo.j.ramos@gmail.com" />
           </label>
           <label className="field">
             <span>Contrasena</span>
@@ -740,19 +750,19 @@ function LoginModal({ onClose, onLogin }) {
             <>
               <label className="field">
                 <span>WhatsApp</span>
-                <input value={data.whatsapp} onChange={(event) => updateData("whatsapp", event.target.value)} />
+                <input value={data.whatsapp} onChange={(event) => updateData("whatsapp", event.target.value)} placeholder="Ej: 5491122233344" />
               </label>
               <label className="field">
                 <span>Nombre del hijo/a</span>
-                <input value={data.childName} onChange={(event) => updateData("childName", event.target.value)} />
+                <input value={data.childName} onChange={(event) => updateData("childName", event.target.value)} placeholder="Ej: Martina" />
               </label>
               <label className="field">
                 <span>Edad</span>
-                <input value={data.childAge} onChange={(event) => updateData("childAge", event.target.value)} />
+                <input value={data.childAge} onChange={(event) => updateData("childAge", event.target.value)} placeholder="Ej: 8" />
               </label>
               <label className="field wide">
                 <span>Motivo de consulta</span>
-                <textarea value={data.reason} onChange={(event) => updateData("reason", event.target.value)} />
+                <textarea value={data.reason} onChange={(event) => updateData("reason", event.target.value)} placeholder="Ej: Dificultades para sostener la atencion y organizar tareas escolares." />
               </label>
             </>
           )}
@@ -761,11 +771,11 @@ function LoginModal({ onClose, onLogin }) {
             <>
               <label className="field">
                 <span>Especialidad</span>
-                <input value={data.specialty} onChange={(event) => updateData("specialty", event.target.value)} />
+                <input value={data.specialty} onChange={(event) => updateData("specialty", event.target.value)} placeholder="Ej: Dificultades de aprendizaje" />
               </label>
               <label className="field">
                 <span>Matricula</span>
-                <input value={data.licenseNumber} onChange={(event) => updateData("licenseNumber", event.target.value)} />
+                <input value={data.licenseNumber} onChange={(event) => updateData("licenseNumber", event.target.value)} placeholder="Ej: MP 12345" />
               </label>
               <label className="field">
                 <span>Provincia</span>
