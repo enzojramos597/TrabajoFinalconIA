@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { hasSupabaseConfig, supabase } from "../lib/supabaseClient";
 
 const initialProfessionals = [
   {
@@ -62,6 +63,68 @@ const initialProfessionals = [
 ];
 
 const workHours = ["09:00", "10:00", "11:00", "17:00", "18:00", "19:00"];
+
+function mapProfessionalFromDb(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    initials: row.initials,
+    province: row.province,
+    specialty: row.specialty,
+    availability: row.availability,
+    address: row.address,
+    phone: row.phone,
+    formation: row.formation,
+    active: row.active,
+    progress: row.progress,
+    coords: row.coords || { top: "49%", left: "66%" },
+  };
+}
+
+function mapProfessionalToDb(professional) {
+  return {
+    name: professional.name,
+    initials: professional.initials || "PR",
+    province: professional.province,
+    specialty: professional.specialty,
+    availability: professional.availability,
+    address: professional.address,
+    phone: professional.phone,
+    formation: professional.formation,
+    active: professional.active,
+    progress: Number(professional.progress) || 60,
+    coords: professional.coords || { top: "49%", left: "66%" },
+  };
+}
+
+function mapAppointmentFromDb(row) {
+  return {
+    id: row.id,
+    professionalId: row.professional_id,
+    professionalName: row.professional_name,
+    date: row.date_label,
+    dateISO: row.date_iso,
+    time: row.time,
+    childName: row.child_name,
+    status: row.status,
+  };
+}
+
+function mapAppointmentToDb(appointment, family) {
+  return {
+    professional_id: appointment.professionalId,
+    professional_name: appointment.professionalName,
+    date_label: appointment.date,
+    date_iso: appointment.dateISO,
+    time: appointment.time,
+    child_name: appointment.childName,
+    parent_name: family.parentName,
+    parent_email: family.email,
+    whatsapp: family.whatsapp,
+    reason: family.reason,
+    status: appointment.status,
+  };
+}
 const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 function toDateInputValue(date) {
@@ -245,6 +308,7 @@ function App() {
     },
   ]);
   const [sessions, setSessions] = useState(initialSessions);
+  const [dataNotice, setDataNotice] = useState(hasSupabaseConfig ? "Conectando con Supabase..." : "Modo demo local: falta configurar Supabase.");
 
   const navItems = [
     ["inicio", "Inicio"],
@@ -255,6 +319,136 @@ function App() {
     ["profesional", "Profesional"],
     ["admin", "Admin"],
   ];
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !supabase) return;
+
+    let isMounted = true;
+
+    async function loadSupabaseData() {
+      const [professionalsResult, appointmentsResult] = await Promise.all([
+        supabase.from("professionals").select("*").order("id", { ascending: true }),
+        supabase.from("appointments").select("*").order("date_iso", { ascending: true }).order("time", { ascending: true }),
+      ]);
+
+      if (!isMounted) return;
+
+      if (professionalsResult.error || appointmentsResult.error) {
+        setDataNotice("No se pudo leer Supabase. El prototipo sigue en modo local.");
+        return;
+      }
+
+      const nextProfessionals = professionalsResult.data.map(mapProfessionalFromDb);
+      if (nextProfessionals.length > 0) {
+        setProfessionals(nextProfessionals);
+        setSelectedProfessional((current) =>
+          nextProfessionals.find((professional) => professional.id === current.id) || nextProfessionals[0]
+        );
+      }
+
+      setAppointments(appointmentsResult.data.map(mapAppointmentFromDb));
+      setDataNotice("Datos sincronizados con Supabase.");
+    }
+
+    loadSupabaseData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function saveAppointment(appointment) {
+    setAppointments((currentAppointments) => [appointment, ...currentAppointments]);
+
+    if (!supabase) {
+      setDataNotice("Turno guardado en modo demo local.");
+      return appointment;
+    }
+
+    const { data, error } = await supabase
+      .from("appointments")
+      .insert(mapAppointmentToDb(appointment, family))
+      .select()
+      .single();
+
+    if (error) {
+      setDataNotice("El horario ya estaba ocupado o Supabase no pudo guardar el turno.");
+      setAppointments((currentAppointments) => currentAppointments.filter((item) => item.id !== appointment.id));
+      throw error;
+    }
+
+    const savedAppointment = mapAppointmentFromDb(data);
+    setAppointments((currentAppointments) =>
+      currentAppointments.map((item) => item.id === appointment.id ? savedAppointment : item)
+    );
+    setDataNotice("Turno guardado en Supabase.");
+    return savedAppointment;
+  }
+
+  async function saveProfessionalRecord(professional) {
+    if (professional.id) {
+      setProfessionals((currentProfessionals) =>
+        currentProfessionals.map((item) => item.id === professional.id ? professional : item)
+      );
+    } else {
+      setProfessionals((currentProfessionals) => [...currentProfessionals, professional]);
+    }
+
+    if (!supabase) {
+      setDataNotice("Profesional guardado en modo demo local.");
+      return professional;
+    }
+
+    const payload = mapProfessionalToDb(professional);
+    const query = professional.id
+      ? supabase.from("professionals").update(payload).eq("id", professional.id).select().single()
+      : supabase.from("professionals").insert(payload).select().single();
+
+    const { data, error } = await query;
+
+    if (error) {
+      setDataNotice("Supabase no pudo guardar el profesional.");
+      throw error;
+    }
+
+    const savedProfessional = mapProfessionalFromDb(data);
+    setProfessionals((currentProfessionals) => {
+      const exists = currentProfessionals.some((item) => item.id === professional.id);
+      return exists
+        ? currentProfessionals.map((item) => item.id === professional.id ? savedProfessional : item)
+        : currentProfessionals.map((item) => item.id === professional.id ? savedProfessional : item);
+    });
+    setSelectedProfessional((current) => current.id === professional.id ? savedProfessional : current);
+    setDataNotice("Profesional guardado en Supabase.");
+    return savedProfessional;
+  }
+
+  async function toggleProfessionalRecord(professional) {
+    const nextProfessional = { ...professional, active: !professional.active };
+    setProfessionals((currentProfessionals) =>
+      currentProfessionals.map((item) => item.id === professional.id ? nextProfessional : item)
+    );
+
+    if (!supabase) {
+      setDataNotice("Estado actualizado en modo demo local.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("professionals")
+      .update({ active: nextProfessional.active })
+      .eq("id", professional.id);
+
+    if (error) {
+      setDataNotice("Supabase no pudo actualizar el estado del profesional.");
+      setProfessionals((currentProfessionals) =>
+        currentProfessionals.map((item) => item.id === professional.id ? professional : item)
+      );
+      throw error;
+    }
+
+    setDataNotice("Estado del profesional actualizado en Supabase.");
+  }
 
   function goToProfessional(professional) {
     setSelectedProfessional(professional);
@@ -277,6 +471,9 @@ function App() {
       setSelectedProfessional,
       session,
       goToProfessional,
+      saveAppointment,
+      saveProfessionalRecord,
+      toggleProfessionalRecord,
       setPage,
     };
 
@@ -345,6 +542,9 @@ function App() {
           <button className="primary-btn" onClick={() => setPage("profesionales")}>Reservar</button>
         </div>
       </header>
+      <div className={hasSupabaseConfig ? "data-status synced" : "data-status"}>
+        {dataNotice}
+      </div>
       {renderPage()}
       {showLogin && (
         <LoginModal
@@ -604,10 +804,11 @@ function ProfessionalCard({ professional, onBook }) {
   );
 }
 
-function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, setIsFamilyLoggedIn, appointments, setAppointments, setPage }) {
+function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, setIsFamilyLoggedIn, appointments, saveAppointment, setPage }) {
   const [selectedDate, setSelectedDate] = useState(getInitialBookingDate());
   const [slot, setSlot] = useState(workHours[0]);
   const [confirmed, setConfirmed] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [authData, setAuthData] = useState({
     parentName: family.parentName,
@@ -620,7 +821,7 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
     setFamily({ ...family, [field]: value });
   }
 
-  function confirmBooking() {
+  async function confirmBooking() {
     if (!isWeekday(selectedDate) || isSlotReserved(selectedDate, slot)) return;
 
     const appointment = {
@@ -633,8 +834,16 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
       childName: family.childName || "Hijo/a",
       status: "Confirmado",
     };
-    setAppointments([appointment, ...appointments]);
-    setConfirmed(appointment);
+
+    try {
+      setIsSaving(true);
+      const savedAppointment = await saveAppointment(appointment);
+      setConfirmed(savedAppointment);
+    } catch {
+      setConfirmed(null);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function isSlotReserved(dateISO, time) {
@@ -842,8 +1051,8 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
           )}
 
           <div className="actions">
-            <button className="primary-btn" onClick={confirmBooking} disabled={!selectedDateIsWeekday || isSlotReserved(selectedDate, slot)}>
-              Confirmar turno
+            <button className="primary-btn" onClick={confirmBooking} disabled={isSaving || !selectedDateIsWeekday || isSlotReserved(selectedDate, slot)}>
+              {isSaving ? "Guardando..." : "Confirmar turno"}
             </button>
             <button className="ghost-btn" onClick={() => setPage("familia")}>Ir al panel</button>
           </div>
@@ -957,7 +1166,7 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
   );
 }
 
-function ProfessionalPanel({ appointments, sessions, setSessions, session, professionals, setProfessionals }) {
+function ProfessionalPanel({ appointments, sessions, setSessions, session, professionals, saveProfessionalRecord, toggleProfessionalRecord }) {
   const emptyProfessional = {
     id: null,
     name: "",
@@ -973,6 +1182,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     coords: { top: "49%", left: "66%" },
   };
   const [editingProfessional, setEditingProfessional] = useState(null);
+  const [isSavingProfessional, setIsSavingProfessional] = useState(false);
   const [report, setReport] = useState({
     date: "10/06/2026",
     professional: "Lic. Mariana Torres",
@@ -1007,33 +1217,28 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     setEditingProfessional(updated);
   }
 
-  function saveProfessional() {
+  async function saveProfessional() {
     if (!editingProfessional.name || !editingProfessional.specialty || !editingProfessional.province) return;
 
-    if (editingProfessional.id) {
-      setProfessionals(professionals.map((professional) =>
-        professional.id === editingProfessional.id ? editingProfessional : professional
-      ));
-    } else {
-      setProfessionals([
-        ...professionals,
-        {
+    const professionalToSave = editingProfessional.id
+      ? editingProfessional
+      : {
           ...editingProfessional,
           id: Date.now(),
           initials: editingProfessional.initials || "PR",
-        },
-      ]);
-    }
+        };
 
-    setEditingProfessional(null);
+    try {
+      setIsSavingProfessional(true);
+      await saveProfessionalRecord(professionalToSave);
+      setEditingProfessional(null);
+    } finally {
+      setIsSavingProfessional(false);
+    }
   }
 
-  function toggleProfessionalStatus(professionalId) {
-    setProfessionals(professionals.map((professional) =>
-      professional.id === professionalId
-        ? { ...professional, active: !professional.active }
-        : professional
-    ));
+  async function toggleProfessionalStatus(professional) {
+    await toggleProfessionalRecord(professional);
   }
 
   return (
@@ -1092,7 +1297,9 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
               </label>
             </div>
             <div className="actions">
-              <button className="primary-btn" onClick={saveProfessional}>Guardar cambios</button>
+              <button className="primary-btn" onClick={saveProfessional} disabled={isSavingProfessional}>
+                {isSavingProfessional ? "Guardando..." : "Guardar cambios"}
+              </button>
               <button className="ghost-btn" onClick={() => setEditingProfessional(null)}>Cancelar</button>
             </div>
           </div>
@@ -1109,7 +1316,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
               </span>
               <div className="actions">
                 <button className="soft-btn" onClick={() => startEditProfessional(professional)}>Editar</button>
-                <button className={professional.active ? "danger-btn" : "soft-btn"} onClick={() => toggleProfessionalStatus(professional.id)}>
+                <button className={professional.active ? "danger-btn" : "soft-btn"} onClick={() => toggleProfessionalStatus(professional)}>
                   {professional.active ? "Desactivar" : "Reactivar"}
                 </button>
               </div>

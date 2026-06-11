@@ -56,6 +56,20 @@ a {
   backdrop-filter: blur(14px);
 }
 
+.data-status {
+  padding: 8px clamp(16px, 4vw, 56px);
+  background: #fbf7ed;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.data-status.synced {
+  background: var(--surface-soft);
+  color: var(--brand);
+}
+
 .brand {
   display: flex;
   align-items: center;
