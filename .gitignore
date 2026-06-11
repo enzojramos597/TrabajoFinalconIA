@@ -6,6 +6,6 @@ dist/
 build/
 .env
 .env.*
+.vercel/
 *.log
 *.tmp
-
