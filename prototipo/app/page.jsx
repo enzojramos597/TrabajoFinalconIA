@@ -1745,7 +1745,7 @@ function AdminPanel({ appointments, professionals, appUsers, setPage, toggleProf
         <div className="stat"><strong>{appointments.length}</strong><span>turnos registrados</span></div>
         <div className="stat"><strong>{professionalUsers.length}</strong><span>usuarios medicos</span></div>
       </section>
-      <section className="grid two">
+      <section className="grid two admin-verification-hidden">
         {professionals.map((professional, index) => (
           <article className="card" key={professional.id}>
             <h3>{professional.name}</h3>
