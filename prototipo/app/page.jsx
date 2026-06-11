@@ -9,6 +9,7 @@ const initialProfessionals = [
     name: "Lic. Mariana Torres",
     initials: "MT",
     province: "Buenos Aires",
+    city: "CABA",
     specialty: "Dificultades de aprendizaje",
     availability: "Esta semana",
     address: "Av. Rivadavia 1845, CABA",
@@ -23,6 +24,7 @@ const initialProfessionals = [
     name: "Lic. Pablo Sosa",
     initials: "PS",
     province: "Cordoba",
+    city: "Cordoba",
     specialty: "Orientación vocacional",
     availability: "Manana",
     address: "Bv. San Juan 720, Cordoba",
@@ -37,6 +39,7 @@ const initialProfessionals = [
     name: "Lic. Sofia Pereyra",
     initials: "SP",
     province: "Mendoza",
+    city: "Mendoza",
     specialty: "Atencion y funciones ejecutivas",
     availability: "Proxima semana",
     address: "San Martin 1120, Mendoza",
@@ -51,6 +54,7 @@ const initialProfessionals = [
     name: "Lic. Valeria Gomez",
     initials: "VG",
     province: "Santa Fe",
+    city: "Rosario",
     specialty: "Primera infancia",
     availability: "Esta semana",
     address: "Pellegrini 890, Rosario",
@@ -72,6 +76,7 @@ function mapProfessionalFromDb(row) {
     email: row.email || "",
     licenseNumber: row.license_number || "",
     province: row.province,
+    city: row.city || "",
     specialty: row.specialty,
     availability: row.availability,
     address: row.address,
@@ -93,6 +98,7 @@ function mapProfessionalToDb(professional) {
     email: professional.email || "",
     license_number: professional.licenseNumber || "",
     province: professional.province,
+    city: professional.city || "",
     specialty: professional.specialty,
     availability: professional.availability,
     address: professional.address,
@@ -1032,7 +1038,7 @@ function ProfessionalCard({ professional, onBook }) {
         <p className="muted">{professional.address}</p>
         <div className="actions">
           <button className="primary-btn" onClick={onBook}>Reservar turno</button>
-          <a className="ghost-btn" href={mapsUrl(professional.address)} target="_blank">Como llegar</a>
+          <a className="ghost-btn" href={mapsUrl(professional)} target="_blank">Como llegar</a>
         </div>
       </div>
     </article>
@@ -1143,7 +1149,7 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
             <span className="tag">{selectedProfessional.province}</span>
             <span className="tag warn">{selectedProfessional.availability}</span>
           </div>
-          <a className="ghost-btn" href={mapsUrl(selectedProfessional.address)} target="_blank">Abrir Google Maps</a>
+          <a className="ghost-btn" href={mapsUrl(selectedProfessional)} target="_blank">Abrir Google Maps</a>
         </aside>
 
         <section className="form-panel">
@@ -1412,6 +1418,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     email: "",
     licenseNumber: "",
     province: "Buenos Aires",
+    city: "",
     specialty: "",
     availability: "Esta semana",
     address: "",
@@ -1465,8 +1472,8 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     setProfessionalErrors((currentErrors) => ({ ...currentErrors, [field]: "" }));
   }
 
-  function showToast(type, text) {
-    setToast({ type, text });
+  function showToast(type, title, text) {
+    setToast({ type, title, text });
     window.setTimeout(() => setToast(null), 4200);
   }
 
@@ -1480,6 +1487,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     if (!professional.specialty.trim()) nextErrors.specialty = "Ingresa la especialidad.";
     if (!professional.licenseNumber.trim()) nextErrors.licenseNumber = "Ingresa la matricula profesional.";
     if (!professional.province) nextErrors.province = "Selecciona una provincia.";
+    if (!professional.city.trim()) nextErrors.city = "Ingresa la ciudad o localidad.";
     if (!professional.address.trim()) nextErrors.address = "Ingresa la direccion del consultorio.";
     if (!professional.phone.trim()) nextErrors.phone = "Ingresa el telefono o WhatsApp.";
     if (!professional.workDays.trim()) nextErrors.workDays = "Ingresa los dias de atencion.";
@@ -1493,7 +1501,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
 
     if (Object.keys(nextErrors).length > 0) {
       setProfessionalErrors(nextErrors);
-      showToast("error", "Revisa los campos obligatorios del profesional.");
+      showToast("error", "Faltan datos", "Revisa los campos marcados para poder guardar el medico.");
       return;
     }
 
@@ -1509,9 +1517,9 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
       await saveProfessionalRecord(professionalToSave);
       setEditingProfessional(null);
       setProfessionalErrors({});
-      showToast("success", "Medico cargado exitosamente.");
+      showToast("success", "Medico cargado exitosamente", "El profesional fue guardado y ya queda disponible para gestionar su agenda.");
     } catch (error) {
-      showToast("error", `No se pudo guardar el medico: ${error?.message || "error desconocido"}.`);
+      showToast("error", "No se pudo guardar", error?.message || "Ocurrio un error desconocido.");
     } finally {
       setIsSavingProfessional(false);
     }
@@ -1525,7 +1533,11 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     <main className="page">
       {toast && (
         <div className={`toast ${toast.type}`}>
-          {toast.text}
+          <span className="toast-icon">{toast.type === "success" ? "OK" : "!"}</span>
+          <div>
+            <strong>{toast.title}</strong>
+            <p>{toast.text}</p>
+          </div>
         </div>
       )}
       <div className="section-head">
@@ -1576,6 +1588,11 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
                 {professionalErrors.province && <small className="field-error">{professionalErrors.province}</small>}
               </label>
               <label className="field">
+                <span>Ciudad / Localidad</span>
+                <input value={editingProfessional.city} onChange={(event) => updateProfessionalField("city", event.target.value)} placeholder="Ej: San Salvador de Jujuy" />
+                {professionalErrors.city && <small className="field-error">{professionalErrors.city}</small>}
+              </label>
+              <label className="field">
                 <span>Estado de agenda publica</span>
                 <select value={editingProfessional.availability} onChange={(event) => updateProfessionalField("availability", event.target.value)}>
                   {["Manana", "Esta semana", "Proxima semana"].map((option) => <option key={option}>{option}</option>)}
@@ -1586,6 +1603,10 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
                 <input value={editingProfessional.address} onChange={(event) => updateProfessionalField("address", event.target.value)} />
                 {professionalErrors.address && <small className="field-error">{professionalErrors.address}</small>}
               </label>
+              <div className="map-query-preview">
+                <strong>Google Maps buscara:</strong>
+                <span>{buildAddressQuery(editingProfessional) || "Completa direccion, ciudad y provincia."}</span>
+              </div>
               <label className="field">
                 <span>Telefono</span>
                 <input value={editingProfessional.phone} onChange={(event) => updateProfessionalField("phone", event.target.value)} />
@@ -1868,7 +1889,7 @@ function MapView({ goToProfessional, professionals }) {
               <p className="muted">{professional.address}</p>
               <div className="actions">
                 <button className="primary-btn" onClick={() => goToProfessional(professional)}>Reservar</button>
-                <a className="ghost-btn" href={mapsUrl(professional.address)} target="_blank">Como llegar</a>
+                <a className="ghost-btn" href={mapsUrl(professional)} target="_blank">Como llegar</a>
               </div>
             </article>
           ))}
@@ -1963,8 +1984,21 @@ function labelFor(value) {
   }[value] || value;
 }
 
-function mapsUrl(address) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+function buildAddressQuery(professional) {
+  if (!professional) return "";
+
+  return [
+    professional.address,
+    professional.city,
+    professional.province,
+    "Argentina",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function mapsUrl(professional) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(buildAddressQuery(professional))}`;
 }
 
 export default App;

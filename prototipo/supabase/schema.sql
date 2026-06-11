@@ -5,6 +5,7 @@ create table if not exists public.professionals (
   email text not null default '',
   license_number text not null default '',
   province text not null,
+  city text not null default '',
   specialty text not null,
   availability text not null default 'Esta semana',
   address text not null default '',
@@ -21,6 +22,7 @@ create table if not exists public.professionals (
 
 alter table public.professionals add column if not exists email text not null default '';
 alter table public.professionals add column if not exists license_number text not null default '';
+alter table public.professionals add column if not exists city text not null default '';
 alter table public.professionals add column if not exists modality text not null default 'Presencial';
 alter table public.professionals add column if not exists work_days text not null default 'Lunes a viernes';
 alter table public.professionals add column if not exists schedule_notes text not null default '9 a 12 y 17 a 20';
@@ -109,12 +111,12 @@ using (true)
 with check (true);
 
 insert into public.professionals
-  (id, name, initials, email, license_number, province, specialty, availability, address, phone, modality, work_days, schedule_notes, formation, active, progress, coords)
+  (id, name, initials, email, license_number, province, city, specialty, availability, address, phone, modality, work_days, schedule_notes, formation, active, progress, coords)
 values
-  (1, 'Lic. Mariana Torres', 'MT', 'mariana@psicopuente.com', 'MP 1001', 'Buenos Aires', 'Dificultades de aprendizaje', 'Esta semana', 'Av. Rivadavia 1845, CABA', '5491134567890', 'Presencial', 'Lunes a viernes', '9 a 12 y 17 a 20', 'Licenciada en Psicopedagogia. Orientacion en alfabetizacion inicial y apoyo escolar.', true, 76, '{"top":"49%","left":"66%"}'),
-  (2, 'Lic. Pablo Sosa', 'PS', 'pablo@psicopuente.com', 'MP 1002', 'Cordoba', 'Orientacion vocacional', 'Manana', 'Bv. San Juan 720, Cordoba', '5493514567890', 'Presencial y virtual', 'Lunes a viernes', '9 a 12 y 17 a 20', 'Psicopedagogo especializado en adolescentes, proyectos escolares y orientacion vocacional.', true, 64, '{"top":"43%","left":"48%"}'),
-  (3, 'Lic. Sofia Pereyra', 'SP', 'sofia@psicopuente.com', 'MP 1003', 'Mendoza', 'Atencion y funciones ejecutivas', 'Proxima semana', 'San Martin 1120, Mendoza', '5492614567890', 'Presencial', 'Lunes a viernes', '9 a 12 y 17 a 20', 'Especialista en procesos atencionales, planificacion y estrategias de estudio.', true, 82, '{"top":"52%","left":"34%"}'),
-  (4, 'Lic. Valeria Gomez', 'VG', 'valeria@psicopuente.com', 'MP 1004', 'Santa Fe', 'Primera infancia', 'Esta semana', 'Pellegrini 890, Rosario', '5493414567890', 'Presencial', 'Lunes a viernes', '9 a 12 y 17 a 20', 'Acompanamiento temprano, desarrollo infantil y trabajo con familias.', true, 71, '{"top":"39%","left":"58%"}')
+  (1, 'Lic. Mariana Torres', 'MT', 'mariana@psicopuente.com', 'MP 1001', 'Buenos Aires', 'CABA', 'Dificultades de aprendizaje', 'Esta semana', 'Av. Rivadavia 1845, CABA', '5491134567890', 'Presencial', 'Lunes a viernes', '9 a 12 y 17 a 20', 'Licenciada en Psicopedagogia. Orientacion en alfabetizacion inicial y apoyo escolar.', true, 76, '{"top":"49%","left":"66%"}'),
+  (2, 'Lic. Pablo Sosa', 'PS', 'pablo@psicopuente.com', 'MP 1002', 'Cordoba', 'Cordoba', 'Orientacion vocacional', 'Manana', 'Bv. San Juan 720, Cordoba', '5493514567890', 'Presencial y virtual', 'Lunes a viernes', '9 a 12 y 17 a 20', 'Psicopedagogo especializado en adolescentes, proyectos escolares y orientacion vocacional.', true, 64, '{"top":"43%","left":"48%"}'),
+  (3, 'Lic. Sofia Pereyra', 'SP', 'sofia@psicopuente.com', 'MP 1003', 'Mendoza', 'Mendoza', 'Atencion y funciones ejecutivas', 'Proxima semana', 'San Martin 1120, Mendoza', '5492614567890', 'Presencial', 'Lunes a viernes', '9 a 12 y 17 a 20', 'Especialista en procesos atencionales, planificacion y estrategias de estudio.', true, 82, '{"top":"52%","left":"34%"}'),
+  (4, 'Lic. Valeria Gomez', 'VG', 'valeria@psicopuente.com', 'MP 1004', 'Santa Fe', 'Rosario', 'Primera infancia', 'Esta semana', 'Pellegrini 890, Rosario', '5493414567890', 'Presencial', 'Lunes a viernes', '9 a 12 y 17 a 20', 'Acompanamiento temprano, desarrollo infantil y trabajo con familias.', true, 71, '{"top":"39%","left":"58%"}')
 on conflict (id) do nothing;
 
 insert into public.appointments
