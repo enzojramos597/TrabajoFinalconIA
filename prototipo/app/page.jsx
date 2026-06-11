@@ -69,11 +69,16 @@ function mapProfessionalFromDb(row) {
     id: row.id,
     name: row.name,
     initials: row.initials,
+    email: row.email || "",
+    licenseNumber: row.license_number || "",
     province: row.province,
     specialty: row.specialty,
     availability: row.availability,
     address: row.address,
     phone: row.phone,
+    modality: row.modality || "Presencial",
+    workDays: row.work_days || "Lunes a viernes",
+    scheduleNotes: row.schedule_notes || "9 a 12 y 17 a 20",
     formation: row.formation,
     active: row.active,
     progress: row.progress,
@@ -85,11 +90,16 @@ function mapProfessionalToDb(professional) {
   return {
     name: professional.name,
     initials: professional.initials || "PR",
+    email: professional.email || "",
+    license_number: professional.licenseNumber || "",
     province: professional.province,
     specialty: professional.specialty,
     availability: professional.availability,
     address: professional.address,
     phone: professional.phone,
+    modality: professional.modality || "Presencial",
+    work_days: professional.workDays || "Lunes a viernes",
+    schedule_notes: professional.scheduleNotes || "9 a 12 y 17 a 20",
     formation: professional.formation,
     active: professional.active,
     progress: Number(professional.progress) || 60,
@@ -427,6 +437,21 @@ function App() {
     }
 
     const savedProfessional = mapProfessionalFromDb(data);
+    if (savedProfessional.email && supabase) {
+      await supabase
+        .from("app_users")
+        .upsert({
+          role: "professional",
+          name: savedProfessional.name,
+          email: savedProfessional.email,
+          whatsapp: savedProfessional.phone,
+          specialty: savedProfessional.specialty,
+          license_number: savedProfessional.licenseNumber,
+          province: savedProfessional.province,
+          status: savedProfessional.active ? "Activo" : "Inactivo",
+        }, { onConflict: "role,email" });
+    }
+
     setProfessionals((currentProfessionals) => {
       const exists = currentProfessionals.some((item) => item.id === professional.id);
       return exists
@@ -987,6 +1012,7 @@ function ProfessionalCard({ professional, onBook }) {
           <span className="tag blue">{professional.specialty}</span>
           <span className="tag warn">{professional.availability}</span>
         </div>
+        <p className="muted">{professional.licenseNumber ? `Matricula: ${professional.licenseNumber}` : "Matricula pendiente"} - {professional.modality}</p>
         <p className="muted">{professional.address}</p>
         <div className="actions">
           <button className="primary-btn" onClick={onBook}>Reservar turno</button>
@@ -1367,11 +1393,16 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     id: null,
     name: "",
     initials: "",
+    email: "",
+    licenseNumber: "",
     province: "Buenos Aires",
     specialty: "",
     availability: "Esta semana",
     address: "",
     phone: "",
+    modality: "Presencial",
+    workDays: "Lunes a viernes",
+    scheduleNotes: "9 a 12 y 17 a 20",
     formation: "",
     active: true,
     progress: 60,
@@ -1414,7 +1445,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
   }
 
   async function saveProfessional() {
-    if (!editingProfessional.name || !editingProfessional.specialty || !editingProfessional.province) return;
+    if (!editingProfessional.name || !editingProfessional.specialty || !editingProfessional.province || !editingProfessional.licenseNumber) return;
 
     const professionalToSave = editingProfessional.id
       ? editingProfessional
@@ -1464,8 +1495,16 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
                 <input value={editingProfessional.name} onChange={(event) => updateProfessionalField("name", event.target.value)} />
               </label>
               <label className="field">
+                <span>Email de acceso</span>
+                <input type="email" value={editingProfessional.email} onChange={(event) => updateProfessionalField("email", event.target.value)} placeholder="Ej: profesional@psicopuente.com" />
+              </label>
+              <label className="field">
                 <span>Especialidad</span>
                 <input value={editingProfessional.specialty} onChange={(event) => updateProfessionalField("specialty", event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Matricula profesional (MP)</span>
+                <input value={editingProfessional.licenseNumber} onChange={(event) => updateProfessionalField("licenseNumber", event.target.value)} placeholder="Ej: MP 12345" />
               </label>
               <label className="field">
                 <span>Provincia</span>
@@ -1474,7 +1513,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
                 </select>
               </label>
               <label className="field">
-                <span>Disponibilidad</span>
+                <span>Estado de agenda publica</span>
                 <select value={editingProfessional.availability} onChange={(event) => updateProfessionalField("availability", event.target.value)}>
                   {["Manana", "Esta semana", "Proxima semana"].map((option) => <option key={option}>{option}</option>)}
                 </select>
@@ -1486,6 +1525,20 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
               <label className="field">
                 <span>Telefono</span>
                 <input value={editingProfessional.phone} onChange={(event) => updateProfessionalField("phone", event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Modalidad</span>
+                <select value={editingProfessional.modality} onChange={(event) => updateProfessionalField("modality", event.target.value)}>
+                  {["Presencial", "Virtual", "Presencial y virtual"].map((option) => <option key={option}>{option}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Dias de atencion</span>
+                <input value={editingProfessional.workDays} onChange={(event) => updateProfessionalField("workDays", event.target.value)} placeholder="Ej: Lunes, miercoles y viernes" />
+              </label>
+              <label className="field wide">
+                <span>Horarios de atencion</span>
+                <input value={editingProfessional.scheduleNotes} onChange={(event) => updateProfessionalField("scheduleNotes", event.target.value)} placeholder="Ej: 9 a 12 y 17 a 20" />
               </label>
               <label className="field wide">
                 <span>Formacion</span>
@@ -1506,6 +1559,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
               <div>
                 <strong>{professional.name}</strong>
                 <p className="muted">{professional.specialty} - {professional.province}</p>
+                <p className="muted">{professional.licenseNumber || "MP sin cargar"} - {professional.email || "Sin email de acceso"}</p>
               </div>
               <span className={professional.active ? "tag" : "tag warn"}>
                 {professional.active ? "Activo" : "Inactivo"}
