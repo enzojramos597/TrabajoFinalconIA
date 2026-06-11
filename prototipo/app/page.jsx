@@ -470,6 +470,7 @@ function App() {
           license_number: savedProfessional.licenseNumber,
           province: savedProfessional.province,
           status: savedProfessional.active ? "Activo" : "Inactivo",
+          ...(professional.password ? { password_hash: professional.password } : {}),
         }, { onConflict: "role,email" });
 
       if (userError) throw userError;
@@ -525,6 +526,7 @@ function App() {
       license_number: data.licenseNumber || "",
       province: data.province || "",
       internal_code: data.internalCode || "",
+      password_hash: data.password || "",
       status: profile.id === "family" ? "Activo" : "Pendiente",
     };
 
@@ -651,6 +653,10 @@ function App() {
 
       if (!userAccount) {
         throw new Error("Cuenta no registrada");
+      }
+
+      if (userAccount.password_hash && userAccount.password_hash !== data.password) {
+        throw new Error("Contrasena incorrecta");
       }
 
       profile = roleConfig[userAccount.role] || roleConfig.family;
@@ -1416,6 +1422,8 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     name: "",
     initials: "",
     email: "",
+    password: "",
+    passwordConfirm: "",
     licenseNumber: "",
     province: "Buenos Aires",
     city: "",
@@ -1453,7 +1461,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
   }
 
   function startEditProfessional(professional) {
-    setEditingProfessional({ ...professional });
+    setEditingProfessional({ ...professional, password: "", passwordConfirm: "" });
     setProfessionalErrors({});
   }
 
@@ -1484,6 +1492,9 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     if (!professional.name.trim()) nextErrors.name = "Ingresa el nombre completo.";
     if (!professional.email.trim()) nextErrors.email = "Ingresa el email de acceso.";
     if (professional.email && !emailPattern.test(professional.email)) nextErrors.email = "Ingresa un email valido.";
+    if (!professional.id && !professional.password) nextErrors.password = "Ingresa una contrasena inicial.";
+    if (professional.password && professional.password.length < 6) nextErrors.password = "La contrasena debe tener al menos 6 caracteres.";
+    if (professional.password !== professional.passwordConfirm) nextErrors.passwordConfirm = "Las contrasenas no coinciden.";
     if (!professional.specialty.trim()) nextErrors.specialty = "Ingresa la especialidad.";
     if (!professional.licenseNumber.trim()) nextErrors.licenseNumber = "Ingresa la matricula profesional.";
     if (!professional.province) nextErrors.province = "Selecciona una provincia.";
@@ -1569,6 +1580,16 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
                 <span>Email de acceso</span>
                 <input type="email" value={editingProfessional.email} onChange={(event) => updateProfessionalField("email", event.target.value)} placeholder="Ej: profesional@psicopuente.com" />
                 {professionalErrors.email && <small className="field-error">{professionalErrors.email}</small>}
+              </label>
+              <label className="field">
+                <span>Contrasena inicial</span>
+                <input type="password" value={editingProfessional.password || ""} onChange={(event) => updateProfessionalField("password", event.target.value)} placeholder={editingProfessional.id ? "Completar solo si desea cambiarla" : "Minimo 6 caracteres"} />
+                {professionalErrors.password && <small className="field-error">{professionalErrors.password}</small>}
+              </label>
+              <label className="field">
+                <span>Repetir contrasena</span>
+                <input type="password" value={editingProfessional.passwordConfirm || ""} onChange={(event) => updateProfessionalField("passwordConfirm", event.target.value)} placeholder="Repetir contrasena" />
+                {professionalErrors.passwordConfirm && <small className="field-error">{professionalErrors.passwordConfirm}</small>}
               </label>
               <label className="field">
                 <span>Especialidad</span>

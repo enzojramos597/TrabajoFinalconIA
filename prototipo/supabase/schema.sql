@@ -57,6 +57,7 @@ create table if not exists public.app_users (
   license_number text,
   province text,
   internal_code text,
+  password_hash text not null default '',
   status text not null default 'Pendiente',
   created_at timestamptz not null default now(),
   unique (role, email)
@@ -65,6 +66,8 @@ create table if not exists public.app_users (
 alter table public.professionals enable row level security;
 alter table public.appointments enable row level security;
 alter table public.app_users enable row level security;
+
+alter table public.app_users add column if not exists password_hash text not null default '';
 
 drop policy if exists "Lectura publica de profesionales" on public.professionals;
 create policy "Lectura publica de profesionales"
@@ -126,9 +129,9 @@ values
 on conflict (professional_id, date_iso, time) do nothing;
 
 insert into public.app_users
-  (role, name, email, whatsapp, specialty, license_number, province, status)
+  (role, name, email, whatsapp, specialty, license_number, province, password_hash, status)
 values
-  ('admin', 'Administrador Psico-Puente', 'admin@psicopuente.com', '', '', '', '', 'Activo'),
-  ('professional', 'Lic. Mariana Torres', 'mariana@psicopuente.com', '5491134567890', 'Dificultades de aprendizaje', 'MP 1001', 'Buenos Aires', 'Activo'),
-  ('professional', 'Lic. Pablo Sosa', 'pablo@psicopuente.com', '5493514567890', 'Orientacion vocacional', 'MP 1002', 'Cordoba', 'Activo')
+  ('admin', 'Administrador Psico-Puente', 'admin@psicopuente.com', '', '', '', '', 'admin123', 'Activo'),
+  ('professional', 'Lic. Mariana Torres', 'mariana@psicopuente.com', '5491134567890', 'Dificultades de aprendizaje', 'MP 1001', 'Buenos Aires', 'medico123', 'Activo'),
+  ('professional', 'Lic. Pablo Sosa', 'pablo@psicopuente.com', '5493514567890', 'Orientacion vocacional', 'MP 1002', 'Cordoba', 'medico123', 'Activo')
 on conflict (role, email) do nothing;
