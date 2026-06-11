@@ -70,6 +70,33 @@ a {
   color: var(--brand);
 }
 
+.toast {
+  position: fixed;
+  top: 96px;
+  right: clamp(16px, 4vw, 56px);
+  z-index: 80;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font-weight: 700;
+}
+
+.toast.success {
+  border-color: #b9d7c5;
+  background: #eef8f1;
+  color: #3d6f4d;
+}
+
+.toast.error {
+  border-color: #edc0c5;
+  background: #fff1f3;
+  color: #9b3644;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -522,6 +549,12 @@ h3 {
 .field span {
   color: var(--muted);
   font-size: 13px;
+  font-weight: 700;
+}
+
+.field-error {
+  color: #9b3644;
+  font-size: 12px;
   font-weight: 700;
 }
 

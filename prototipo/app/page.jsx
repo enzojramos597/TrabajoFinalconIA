@@ -411,6 +411,8 @@ function App() {
   }
 
   async function saveProfessionalRecord(professional) {
+    const previousProfessionals = professionals;
+
     if (professional.id) {
       setProfessionals((currentProfessionals) =>
         currentProfessionals.map((item) => item.id === professional.id ? professional : item)
@@ -432,7 +434,8 @@ function App() {
     const { data, error } = await query;
 
     if (error) {
-      setDataNotice("Supabase no pudo guardar el profesional.");
+      setProfessionals(previousProfessionals);
+      setDataNotice(`Supabase no pudo guardar el profesional: ${error.message}`);
       throw error;
     }
 
@@ -959,6 +962,11 @@ function Professionals({ goToProfessional, professionals }) {
 
   return (
     <main className="page">
+      {toast && (
+        <div className={`toast ${toast.type}`}>
+          {toast.text}
+        </div>
+      )}
       <div className="section-head">
         <div>
           <p className="eyebrow">Directorio</p>
@@ -1410,6 +1418,8 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
   };
   const [editingProfessional, setEditingProfessional] = useState(null);
   const [isSavingProfessional, setIsSavingProfessional] = useState(false);
+  const [professionalErrors, setProfessionalErrors] = useState({});
+  const [toast, setToast] = useState(null);
   const [report, setReport] = useState({
     date: "10/06/2026",
     professional: "Lic. Mariana Torres",
@@ -1424,10 +1434,12 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
 
   function startNewProfessional() {
     setEditingProfessional(emptyProfessional);
+    setProfessionalErrors({});
   }
 
   function startEditProfessional(professional) {
     setEditingProfessional({ ...professional });
+    setProfessionalErrors({});
   }
 
   function updateProfessionalField(field, value) {
@@ -1442,10 +1454,40 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
         .toUpperCase() || "PR";
     }
     setEditingProfessional(updated);
+    setProfessionalErrors((currentErrors) => ({ ...currentErrors, [field]: "" }));
+  }
+
+  function showToast(type, text) {
+    setToast({ type, text });
+    window.setTimeout(() => setToast(null), 4200);
+  }
+
+  function validateProfessional(professional) {
+    const nextErrors = {};
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!professional.name.trim()) nextErrors.name = "Ingresa el nombre completo.";
+    if (!professional.email.trim()) nextErrors.email = "Ingresa el email de acceso.";
+    if (professional.email && !emailPattern.test(professional.email)) nextErrors.email = "Ingresa un email valido.";
+    if (!professional.specialty.trim()) nextErrors.specialty = "Ingresa la especialidad.";
+    if (!professional.licenseNumber.trim()) nextErrors.licenseNumber = "Ingresa la matricula profesional.";
+    if (!professional.province) nextErrors.province = "Selecciona una provincia.";
+    if (!professional.address.trim()) nextErrors.address = "Ingresa la direccion del consultorio.";
+    if (!professional.phone.trim()) nextErrors.phone = "Ingresa el telefono o WhatsApp.";
+    if (!professional.workDays.trim()) nextErrors.workDays = "Ingresa los dias de atencion.";
+    if (!professional.scheduleNotes.trim()) nextErrors.scheduleNotes = "Ingresa los horarios de atencion.";
+
+    return nextErrors;
   }
 
   async function saveProfessional() {
-    if (!editingProfessional.name || !editingProfessional.specialty || !editingProfessional.province || !editingProfessional.licenseNumber) return;
+    const nextErrors = validateProfessional(editingProfessional);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setProfessionalErrors(nextErrors);
+      showToast("error", "Revisa los campos obligatorios del profesional.");
+      return;
+    }
 
     const professionalToSave = editingProfessional.id
       ? editingProfessional
@@ -1459,6 +1501,10 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
       setIsSavingProfessional(true);
       await saveProfessionalRecord(professionalToSave);
       setEditingProfessional(null);
+      setProfessionalErrors({});
+      showToast("success", "Medico cargado exitosamente.");
+    } catch {
+      showToast("error", "No se pudo guardar el medico. Revisa Supabase o ejecuta el schema.sql actualizado.");
     } finally {
       setIsSavingProfessional(false);
     }
@@ -1493,24 +1539,29 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
               <label className="field">
                 <span>Nombre</span>
                 <input value={editingProfessional.name} onChange={(event) => updateProfessionalField("name", event.target.value)} />
+                {professionalErrors.name && <small className="field-error">{professionalErrors.name}</small>}
               </label>
               <label className="field">
                 <span>Email de acceso</span>
                 <input type="email" value={editingProfessional.email} onChange={(event) => updateProfessionalField("email", event.target.value)} placeholder="Ej: profesional@psicopuente.com" />
+                {professionalErrors.email && <small className="field-error">{professionalErrors.email}</small>}
               </label>
               <label className="field">
                 <span>Especialidad</span>
                 <input value={editingProfessional.specialty} onChange={(event) => updateProfessionalField("specialty", event.target.value)} />
+                {professionalErrors.specialty && <small className="field-error">{professionalErrors.specialty}</small>}
               </label>
               <label className="field">
                 <span>Matricula profesional (MP)</span>
                 <input value={editingProfessional.licenseNumber} onChange={(event) => updateProfessionalField("licenseNumber", event.target.value)} placeholder="Ej: MP 12345" />
+                {professionalErrors.licenseNumber && <small className="field-error">{professionalErrors.licenseNumber}</small>}
               </label>
               <label className="field">
                 <span>Provincia</span>
                 <select value={editingProfessional.province} onChange={(event) => updateProfessionalField("province", event.target.value)}>
                   {argentinaProvinces.map((province) => <option key={province}>{province}</option>)}
                 </select>
+                {professionalErrors.province && <small className="field-error">{professionalErrors.province}</small>}
               </label>
               <label className="field">
                 <span>Estado de agenda publica</span>
@@ -1521,10 +1572,12 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
               <label className="field">
                 <span>Direccion</span>
                 <input value={editingProfessional.address} onChange={(event) => updateProfessionalField("address", event.target.value)} />
+                {professionalErrors.address && <small className="field-error">{professionalErrors.address}</small>}
               </label>
               <label className="field">
                 <span>Telefono</span>
                 <input value={editingProfessional.phone} onChange={(event) => updateProfessionalField("phone", event.target.value)} />
+                {professionalErrors.phone && <small className="field-error">{professionalErrors.phone}</small>}
               </label>
               <label className="field">
                 <span>Modalidad</span>
@@ -1535,10 +1588,12 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
               <label className="field">
                 <span>Dias de atencion</span>
                 <input value={editingProfessional.workDays} onChange={(event) => updateProfessionalField("workDays", event.target.value)} placeholder="Ej: Lunes, miercoles y viernes" />
+                {professionalErrors.workDays && <small className="field-error">{professionalErrors.workDays}</small>}
               </label>
               <label className="field wide">
                 <span>Horarios de atencion</span>
                 <input value={editingProfessional.scheduleNotes} onChange={(event) => updateProfessionalField("scheduleNotes", event.target.value)} placeholder="Ej: 9 a 12 y 17 a 20" />
+                {professionalErrors.scheduleNotes && <small className="field-error">{professionalErrors.scheduleNotes}</small>}
               </label>
               <label className="field wide">
                 <span>Formacion</span>
