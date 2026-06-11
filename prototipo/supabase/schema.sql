@@ -90,6 +90,13 @@ on public.app_users for insert
 to anon, authenticated
 with check (true);
 
+drop policy if exists "ABM demo de usuarios" on public.app_users;
+create policy "ABM demo de usuarios"
+on public.app_users for update
+to anon, authenticated
+using (true)
+with check (true);
+
 insert into public.professionals
   (id, name, initials, province, specialty, availability, address, phone, formation, active, progress, coords)
 values
@@ -104,3 +111,11 @@ insert into public.appointments
 values
   (1, 1, 'Lic. Mariana Torres', 'Miercoles 10/06/2026 10:00', '2026-06-10', '10:00', 'Mateo', 'Carolina Ruiz', 'carolina@email.com', '+5493884322437', 'Dificultades para sostener la atencion y organizar tareas escolares.', 'Confirmado')
 on conflict (professional_id, date_iso, time) do nothing;
+
+insert into public.app_users
+  (role, name, email, whatsapp, specialty, license_number, province, status)
+values
+  ('admin', 'Administrador Psico-Puente', 'admin@psicopuente.com', '', '', '', '', 'Activo'),
+  ('professional', 'Lic. Mariana Torres', 'mariana@psicopuente.com', '5491134567890', 'Dificultades de aprendizaje', 'MP 1001', 'Buenos Aires', 'Activo'),
+  ('professional', 'Lic. Pablo Sosa', 'pablo@psicopuente.com', '5493514567890', 'Orientacion vocacional', 'MP 1002', 'Cordoba', 'Activo')
+on conflict (role, email) do nothing;

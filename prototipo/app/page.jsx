@@ -280,6 +280,24 @@ const loginProfiles = [
   },
 ];
 
+const roleConfig = {
+  family: {
+    id: "family",
+    title: "Padre / Tutor",
+    targetPage: "familia",
+  },
+  professional: {
+    id: "professional",
+    title: "Profesional",
+    targetPage: "profesional",
+  },
+  admin: {
+    id: "admin",
+    title: "Administrador",
+    targetPage: "admin",
+  },
+};
+
 function App() {
   const [page, setPage] = useState("inicio");
   const [professionals, setProfessionals] = useState(initialProfessionals);
@@ -302,6 +320,7 @@ function App() {
     },
   ]);
   const [sessions, setSessions] = useState(initialSessions);
+  const [appUsers, setAppUsers] = useState([]);
   const [dataNotice, setDataNotice] = useState(hasSupabaseConfig ? "Conectando con Supabase..." : "Modo demo local: falta configurar Supabase.");
 
   const navItems = [
@@ -309,8 +328,9 @@ function App() {
     ["profesionales", "Profesionales"],
     ["mapa", "Mapa"],
     ["recursos", "Recursos"],
-    ["familia", "Familia"],
-    ["profesional", "Profesional"],
+    ...(session?.role === "family" ? [["familia", "Familia"]] : []),
+    ...(session?.role === "professional" ? [["profesional", "Profesional"]] : []),
+    ...(session?.role === "admin" ? [["admin", "Admin"]] : []),
   ];
 
   useEffect(() => {
@@ -319,14 +339,15 @@ function App() {
     let isMounted = true;
 
     async function loadSupabaseData() {
-      const [professionalsResult, appointmentsResult] = await Promise.all([
+      const [professionalsResult, appointmentsResult, usersResult] = await Promise.all([
         supabase.from("professionals").select("*").order("id", { ascending: true }),
         supabase.from("appointments").select("*").order("date_iso", { ascending: true }).order("time", { ascending: true }),
+        supabase.from("app_users").select("*").order("created_at", { ascending: false }),
       ]);
 
       if (!isMounted) return;
 
-      if (professionalsResult.error || appointmentsResult.error) {
+      if (professionalsResult.error || appointmentsResult.error || usersResult.error) {
         setDataNotice("No se pudo leer Supabase. El prototipo sigue en modo local.");
         return;
       }
@@ -340,6 +361,7 @@ function App() {
       }
 
       setAppointments(appointmentsResult.data.map(mapAppointmentFromDb));
+      setAppUsers(usersResult.data || []);
       setDataNotice("Datos sincronizados con Supabase.");
     }
 
@@ -444,51 +466,80 @@ function App() {
   }
 
   async function saveUserAccount(profile, data) {
+    const newUser = {
+      role: profile.id,
+      name: data.name,
+      email: data.email,
+      whatsapp: data.whatsapp || "",
+      child_name: data.childName || "",
+      child_age: data.childAge || "",
+      consultation_reason: data.reason || "",
+      specialty: data.specialty || "",
+      license_number: data.licenseNumber || "",
+      province: data.province || "",
+      internal_code: data.internalCode || "",
+      status: profile.id === "family" ? "Activo" : "Pendiente",
+    };
+
     if (!supabase) {
       setDataNotice("Usuario registrado en modo demo local.");
+      setAppUsers((currentUsers) => [{ ...newUser, id: Date.now() }, ...currentUsers]);
       return;
     }
 
-    const { error } = await supabase
+    const { data: savedUser, error } = await supabase
       .from("app_users")
-      .insert({
-        role: profile.id,
-        name: data.name,
-        email: data.email,
-        whatsapp: data.whatsapp || "",
-        child_name: data.childName || "",
-        child_age: data.childAge || "",
-        consultation_reason: data.reason || "",
-        specialty: data.specialty || "",
-        license_number: data.licenseNumber || "",
-        province: data.province || "",
-        internal_code: data.internalCode || "",
-      });
+      .insert(newUser)
+      .select()
+      .single();
 
     if (error) {
       setDataNotice("Supabase no pudo registrar el usuario. Revisa si ya existe o falta ejecutar el SQL actualizado.");
       throw error;
     }
 
+    setAppUsers((currentUsers) => [savedUser, ...currentUsers]);
     setDataNotice(`Usuario ${profile.title} registrado en Supabase.`);
   }
 
-  async function findUserAccount(profile, data) {
+  async function findUserAccount(data) {
     if (!supabase) return null;
 
-    const { data: userAccount, error } = await supabase
+    const { data: userAccounts, error } = await supabase
       .from("app_users")
       .select("*")
-      .eq("role", profile.id)
       .eq("email", data.email)
-      .maybeSingle();
+      .limit(1);
 
     if (error) {
       setDataNotice("No se pudo consultar el usuario en Supabase.");
       throw error;
     }
 
-    return userAccount;
+    return userAccounts?.[0] || null;
+  }
+
+  async function updateUserStatus(user, status) {
+    setAppUsers((currentUsers) =>
+      currentUsers.map((item) => item.id === user.id ? { ...item, status } : item)
+    );
+
+    if (!supabase) {
+      setDataNotice("Estado de usuario actualizado en modo demo local.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("app_users")
+      .update({ status })
+      .eq("id", user.id);
+
+    if (error) {
+      setDataNotice("Supabase no pudo actualizar el usuario.");
+      throw error;
+    }
+
+    setDataNotice("Usuario actualizado en Supabase.");
   }
 
   function goToProfessional(professional) {
@@ -527,6 +578,8 @@ function App() {
       saveAppointment,
       saveProfessionalRecord,
       toggleProfessionalRecord,
+      updateUserStatus,
+      appUsers,
       setPage,
     };
 
@@ -537,20 +590,23 @@ function App() {
     if (page === "recursos") return <Resources />;
     if (page === "familia") return <FamilyPanel {...shared} />;
     if (page === "profesional") return <ProfessionalPanel {...shared} />;
-    if (page === "admin") return <AdminPanel appointments={appointments} professionals={professionals} />;
+    if (page === "admin") return <AdminPanel appointments={appointments} professionals={professionals} appUsers={appUsers} setPage={setPage} toggleProfessionalRecord={toggleProfessionalRecord} updateUserStatus={updateUserStatus} />;
   }
 
   async function handleLogin(profile, data, mode) {
     let userAccount = null;
 
     if (mode === "register") {
+      profile = roleConfig.family;
       await saveUserAccount(profile, data);
     } else {
-      userAccount = await findUserAccount(profile, data);
+      userAccount = await findUserAccount(data);
 
-      if (!userAccount && profile.id === "family") {
+      if (!userAccount) {
         throw new Error("Cuenta no registrada");
       }
+
+      profile = roleConfig[userAccount.role] || roleConfig.family;
     }
 
     const accountName = userAccount?.name || data.name || profile.title;
@@ -608,10 +664,10 @@ function App() {
         </nav>
         <div className="top-actions">
           {session && <span className="role-pill">{session.name}</span>}
-          <button className="ghost-btn" onClick={() => setShowLogin(true)}>Login</button>
+          {!session && <button className="ghost-btn" onClick={() => setShowLogin(true)}>Login</button>}
           {session && <button className="soft-btn" onClick={handleLogout}>Salir</button>}
-          <button className="soft-btn" onClick={() => setPage(session?.role === "professional" ? "profesional" : "familia")}>Mi panel</button>
-          <button className="primary-btn" onClick={() => setPage("profesionales")}>Reservar</button>
+          {session && <button className="soft-btn" onClick={() => setPage(session.role === "professional" ? "profesional" : session.role === "admin" ? "admin" : "familia")}>Mi panel</button>}
+          {(!session || session.role === "family") && <button className="primary-btn" onClick={() => setPage("profesionales")}>Reservar</button>}
         </div>
       </header>
       <div className={hasSupabaseConfig ? "data-status synced" : "data-status"}>
@@ -631,8 +687,6 @@ function App() {
 
 function LoginModal({ onClose, onLogin }) {
   const [mode, setMode] = useState("login");
-  const [selectedProfileId, setSelectedProfileId] = useState("family");
-  const selectedProfile = loginProfiles.find((profile) => profile.id === selectedProfileId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [data, setData] = useState({
@@ -649,24 +703,6 @@ function LoginModal({ onClose, onLogin }) {
     province: "Buenos Aires",
     internalCode: "",
   });
-
-  function selectProfile(profile) {
-    setSelectedProfileId(profile.id);
-    setMessage("");
-    setData((currentData) => ({
-      ...currentData,
-      name: "",
-      email: "",
-      whatsapp: "",
-      password: "",
-      passwordConfirm: "",
-      childName: "",
-      childAge: "",
-      reason: "",
-      specialty: "",
-      licenseNumber: "",
-    }));
-  }
 
   function updateData(field, value) {
     setData({ ...data, [field]: value });
@@ -691,7 +727,7 @@ function LoginModal({ onClose, onLogin }) {
     try {
       setIsSubmitting(true);
       setMessage("");
-      await onLogin(selectedProfile, data, mode);
+      await onLogin(roleConfig.family, data, mode);
     } catch {
       setMessage(mode === "login"
         ? "No encontramos una cuenta con ese correo y perfil. Usa Registrarse para crearla."
@@ -714,17 +750,11 @@ function LoginModal({ onClose, onLogin }) {
 
         <p className="login-intro">
           {mode === "login"
-            ? "Ingresa con tu correo y contrasena para acceder a tu panel."
-            : "Completa el formulario para solicitar tu cuenta en Psico-Puente."}
+            ? "Ingresa con tu correo y contrasena. El sistema detecta si sos padre/tutor, profesional o administrador."
+            : "Registro exclusivo para padres y tutores que necesitan reservar turnos."}
         </p>
 
         <div className="form-grid">
-          <label className="field wide">
-            <span>Tipo de usuario</span>
-            <select value={selectedProfileId} onChange={(event) => selectProfile(loginProfiles.find((profile) => profile.id === event.target.value))}>
-              {loginProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.title}</option>)}
-            </select>
-          </label>
           {mode === "register" && (
             <label className="field">
               <span>Nombre completo</span>
@@ -746,7 +776,7 @@ function LoginModal({ onClose, onLogin }) {
             </label>
           )}
 
-          {selectedProfileId === "family" && mode === "register" && (
+          {mode === "register" && (
             <>
               <label className="field">
                 <span>WhatsApp</span>
@@ -766,32 +796,6 @@ function LoginModal({ onClose, onLogin }) {
               </label>
             </>
           )}
-
-          {selectedProfileId === "professional" && mode === "register" && (
-            <>
-              <label className="field">
-                <span>Especialidad</span>
-                <input value={data.specialty} onChange={(event) => updateData("specialty", event.target.value)} placeholder="Ej: Dificultades de aprendizaje" />
-              </label>
-              <label className="field">
-                <span>Matricula</span>
-                <input value={data.licenseNumber} onChange={(event) => updateData("licenseNumber", event.target.value)} placeholder="Ej: MP 12345" />
-              </label>
-              <label className="field">
-                <span>Provincia</span>
-                <select value={data.province} onChange={(event) => updateData("province", event.target.value)}>
-                  {argentinaProvinces.map((province) => <option key={province}>{province}</option>)}
-                </select>
-              </label>
-            </>
-          )}
-
-          {selectedProfileId === "admin" && mode === "register" && (
-            <label className="field">
-              <span>Codigo interno</span>
-              <input value={data.internalCode} onChange={(event) => updateData("internalCode", event.target.value)} />
-            </label>
-          )}
         </div>
 
         <div className="login-helper">
@@ -805,8 +809,8 @@ function LoginModal({ onClose, onLogin }) {
         <div className="notice">
           <strong>Prototipo de autenticacion</strong>
           <p>{mode === "login"
-            ? "El ingreso valida el flujo visual de acceso por perfil para navegar el prototipo."
-            : "El registro guarda los datos del perfil en Supabase. La clave no se persiste en texto plano."}</p>
+            ? "Los profesionales y administradores deben estar dados de alta previamente por administracion."
+            : "El registro guarda una cuenta familiar en Supabase. La clave no se persiste en texto plano."}</p>
         </div>
 
         {message && (
@@ -822,7 +826,7 @@ function LoginModal({ onClose, onLogin }) {
               ? "Procesando..."
               : mode === "login"
                 ? "Ingresar"
-                : "Registrarse"}
+                : "Registrarme como padre/tutor"}
           </button>
           <button className="ghost-btn" onClick={onClose}>Cancelar</button>
         </div>
@@ -1356,6 +1360,9 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
 }
 
 function ProfessionalPanel({ appointments, sessions, setSessions, session, professionals, saveProfessionalRecord, toggleProfessionalRecord }) {
+  const visibleAppointments = session?.role === "professional"
+    ? appointments.filter((appointment) => appointment.professionalName === session.name)
+    : appointments;
   const emptyProfessional = {
     id: null,
     name: "",
@@ -1498,7 +1505,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
             <article key={professional.id} className="abm-row">
               <div>
                 <strong>{professional.name}</strong>
-                <p className="muted">{professional.specialty} · {professional.province}</p>
+                <p className="muted">{professional.specialty} - {professional.province}</p>
               </div>
               <span className={professional.active ? "tag" : "tag warn"}>
                 {professional.active ? "Activo" : "Inactivo"}
@@ -1516,7 +1523,8 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
       <section className="dashboard-layout">
         <div>
           <h3>Agenda semanal</h3>
-          {appointments.map((appointment) => (
+          {visibleAppointments.length === 0 && <p className="muted">No tenes turnos asignados por el momento.</p>}
+          {visibleAppointments.map((appointment) => (
             <article className="appointment-card" key={appointment.id}>
               <header>
                 <div>
@@ -1555,21 +1563,24 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
   );
 }
 
-function AdminPanel({ appointments, professionals }) {
+function AdminPanel({ appointments, professionals, appUsers, setPage, toggleProfessionalRecord, updateUserStatus }) {
+  const familyUsers = appUsers.filter((user) => user.role === "family");
+  const professionalUsers = appUsers.filter((user) => user.role === "professional");
+
   return (
     <main className="page">
       <div className="section-head">
         <div>
           <p className="eyebrow">Administracion</p>
           <h2>Gestion general del centro</h2>
-          <p>Vista simulada para aprobar profesionales y consultar indicadores principales.</p>
+          <p>Panel para administrar medicos, padres/tutores, turnos e indicadores principales.</p>
         </div>
       </div>
       <section className="admin-stats">
         <div className="stat"><strong>{professionals.length}</strong><span>profesionales</span></div>
+        <div className="stat"><strong>{familyUsers.length}</strong><span>padres/tutores</span></div>
         <div className="stat"><strong>{appointments.length}</strong><span>turnos registrados</span></div>
-        <div className="stat"><strong>4</strong><span>provincias</span></div>
-        <div className="stat"><strong>92%</strong><span>confirmaciones</span></div>
+        <div className="stat"><strong>{professionalUsers.length}</strong><span>usuarios medicos</span></div>
       </section>
       <section className="grid two">
         {professionals.map((professional, index) => (
@@ -1585,6 +1596,81 @@ function AdminPanel({ appointments, professionals }) {
             </div>
           </article>
         ))}
+      </section>
+      <section className="card abm-panel">
+        <div className="section-head compact">
+          <div>
+            <h3>ABM de medicos</h3>
+            <p>Alta, edicion y activacion se gestionan desde el panel profesional.</p>
+          </div>
+          <button className="primary-btn" onClick={() => setPage("profesional")}>Abrir ABM medicos</button>
+        </div>
+        <div className="abm-list">
+          {professionals.map((professional) => (
+            <article key={professional.id} className="abm-row">
+              <div>
+                <strong>{professional.name}</strong>
+                <p className="muted">{professional.specialty} · {professional.province}</p>
+              </div>
+              <span className={professional.active ? "tag" : "tag warn"}>{professional.active ? "Activo" : "Inactivo"}</span>
+              <div className="actions">
+                <button className={professional.active ? "danger-btn" : "soft-btn"} onClick={() => toggleProfessionalRecord(professional)}>
+                  {professional.active ? "Desactivar" : "Reactivar"}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="card abm-panel">
+        <div className="section-head compact">
+          <div>
+            <h3>Padres y tutores registrados</h3>
+            <p>Usuarios finales habilitados para seleccionar profesional y reservar turnos.</p>
+          </div>
+        </div>
+        <div className="abm-list">
+          {familyUsers.length === 0 && <p className="muted">Todavia no hay padres o tutores registrados.</p>}
+          {familyUsers.map((user) => (
+            <article key={user.id} className="abm-row">
+              <div>
+                <strong>{user.name}</strong>
+                <p className="muted">{user.email} - {user.child_name || "Sin hijo/a cargado"}</p>
+              </div>
+              <span className={user.status === "Activo" ? "tag" : "tag warn"}>{user.status}</span>
+              <div className="actions">
+                <button className="soft-btn" onClick={() => updateUserStatus(user, "Activo")}>Activar</button>
+                <button className="danger-btn" onClick={() => updateUserStatus(user, "Inactivo")}>Desactivar</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="card abm-panel">
+        <div className="section-head compact">
+          <div>
+            <h3>Usuarios profesionales</h3>
+            <p>Los profesionales no se registran publicamente: los da de alta administracion.</p>
+          </div>
+        </div>
+        <div className="abm-list">
+          {professionalUsers.length === 0 && <p className="muted">No hay usuarios profesionales cargados como login.</p>}
+          {professionalUsers.map((user) => (
+            <article key={user.id} className="abm-row">
+              <div>
+                <strong>{user.name}</strong>
+                <p className="muted">{user.email} - {user.specialty || "Sin especialidad"}</p>
+              </div>
+              <span className={user.status === "Activo" ? "tag" : "tag warn"}>{user.status}</span>
+              <div className="actions">
+                <button className="soft-btn" onClick={() => updateUserStatus(user, "Activo")}>Aprobar</button>
+                <button className="danger-btn" onClick={() => updateUserStatus(user, "Inactivo")}>Desactivar</button>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );
