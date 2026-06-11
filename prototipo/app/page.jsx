@@ -657,71 +657,63 @@ function LoginModal({ onClose, onLogin }) {
         <header className="modal-head">
           <div>
             <p className="eyebrow">Acceso al sistema</p>
-            <h2>{mode === "login" ? "Ingresar" : "Registrarse"}</h2>
+            <h2>{mode === "login" ? "Iniciar sesion" : "Crear cuenta"}</h2>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Cerrar login">x</button>
         </header>
 
-        <div className="auth-switch login-mode" aria-label="Modo de acceso">
-          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Ingresar</button>
-          <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Registrarse</button>
-        </div>
-
-        <div className="profile-options">
-          {loginProfiles.map((profile) => (
-            <button
-              key={profile.id}
-              className={selectedProfileId === profile.id ? "profile-option active" : "profile-option"}
-              onClick={() => selectProfile(profile)}
-            >
-              <strong>{profile.title}</strong>
-              <span>{profile.description}</span>
-            </button>
-          ))}
-        </div>
+        <p className="login-intro">
+          {mode === "login"
+            ? "Ingresa con tu correo y contrasena para acceder a tu panel."
+            : "Completa el formulario para solicitar tu cuenta en Psico-Puente."}
+        </p>
 
         <div className="form-grid">
-          <label className="field">
-            <span>Nombre completo</span>
-            <input value={data.name} onChange={(event) => updateData("name", event.target.value)} />
+          <label className="field wide">
+            <span>Tipo de usuario</span>
+            <select value={selectedProfileId} onChange={(event) => selectProfile(loginProfiles.find((profile) => profile.id === event.target.value))}>
+              {loginProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.title}</option>)}
+            </select>
           </label>
+          {mode === "register" && (
+            <label className="field">
+              <span>Nombre completo</span>
+              <input value={data.name} onChange={(event) => updateData("name", event.target.value)} />
+            </label>
+          )}
           <label className="field">
-            <span>Email</span>
+            <span>Correo electronico</span>
             <input type="email" value={data.email} onChange={(event) => updateData("email", event.target.value)} />
           </label>
           <label className="field">
-            <span>Clave</span>
+            <span>Contrasena</span>
             <input type="password" value={data.password} onChange={(event) => updateData("password", event.target.value)} placeholder="********" />
           </label>
           {mode === "register" && (
             <label className="field">
-              <span>Repetir clave</span>
+              <span>Repetir contrasena</span>
               <input type="password" value={data.passwordConfirm} onChange={(event) => updateData("passwordConfirm", event.target.value)} placeholder="********" />
             </label>
           )}
 
-          {selectedProfileId === "family" && (
+          {selectedProfileId === "family" && mode === "register" && (
             <>
               <label className="field">
                 <span>WhatsApp</span>
                 <input value={data.whatsapp} onChange={(event) => updateData("whatsapp", event.target.value)} />
               </label>
-              {mode === "register" && (
-                <>
-                  <label className="field">
-                    <span>Nombre del hijo/a</span>
-                    <input value={data.childName} onChange={(event) => updateData("childName", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Edad</span>
-                    <input value={data.childAge} onChange={(event) => updateData("childAge", event.target.value)} />
-                  </label>
-                  <label className="field wide">
-                    <span>Motivo de consulta</span>
-                    <textarea value={data.reason} onChange={(event) => updateData("reason", event.target.value)} />
-                  </label>
-                </>
-              )}
+              <label className="field">
+                <span>Nombre del hijo/a</span>
+                <input value={data.childName} onChange={(event) => updateData("childName", event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Edad</span>
+                <input value={data.childAge} onChange={(event) => updateData("childAge", event.target.value)} />
+              </label>
+              <label className="field wide">
+                <span>Motivo de consulta</span>
+                <textarea value={data.reason} onChange={(event) => updateData("reason", event.target.value)} />
+              </label>
             </>
           )}
 
@@ -752,10 +744,18 @@ function LoginModal({ onClose, onLogin }) {
           )}
         </div>
 
+        <div className="login-helper">
+          {mode === "login" ? (
+            <p>No tenes cuenta? <button onClick={() => setMode("register")}>Registrarse</button></p>
+          ) : (
+            <p>Ya tenes cuenta? <button onClick={() => setMode("login")}>Iniciar sesion</button></p>
+          )}
+        </div>
+
         <div className="notice">
           <strong>Prototipo de autenticacion</strong>
           <p>{mode === "login"
-            ? "El ingreso simula una sesion por perfil para navegar el prototipo."
+            ? "El ingreso valida el flujo visual de acceso por perfil para navegar el prototipo."
             : "El registro guarda los datos del perfil en Supabase. La clave no se persiste en texto plano."}</p>
         </div>
 
@@ -771,8 +771,8 @@ function LoginModal({ onClose, onLogin }) {
             {isSubmitting
               ? "Procesando..."
               : mode === "login"
-                ? `Entrar como ${selectedProfile.title}`
-                : `Registrar ${selectedProfile.title}`}
+                ? "Ingresar"
+                : "Registrarse"}
           </button>
           <button className="ghost-btn" onClick={onClose}>Cancelar</button>
         </div>
