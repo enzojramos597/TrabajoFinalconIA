@@ -412,22 +412,34 @@ function App() {
 
   async function saveProfessionalRecord(professional) {
     const previousProfessionals = professionals;
+    const isExistingProfessional = Boolean(
+      professional.id && professionals.some((item) => item.id === professional.id)
+    );
+    const optimisticId = isExistingProfessional ? professional.id : Date.now();
+    const optimisticProfessional = {
+      ...professional,
+      id: optimisticId,
+    };
 
-    if (professional.id) {
+    if (isExistingProfessional) {
       setProfessionals((currentProfessionals) =>
-        currentProfessionals.map((item) => item.id === professional.id ? professional : item)
+        currentProfessionals.map((item) => item.id === professional.id ? optimisticProfessional : item)
       );
     } else {
-      setProfessionals((currentProfessionals) => [...currentProfessionals, professional]);
+      setProfessionals((currentProfessionals) => [...currentProfessionals, optimisticProfessional]);
     }
 
     if (!supabase) {
       setDataNotice("Profesional guardado en modo demo local.");
-      return professional;
+      return optimisticProfessional;
     }
 
     const payload = mapProfessionalToDb(professional);
-    const query = professional.id
+    if (!isExistingProfessional) {
+      payload.id = optimisticId;
+    }
+
+    const query = isExistingProfessional
       ? supabase.from("professionals").update(payload).eq("id", professional.id).select().single()
       : supabase.from("professionals").insert(payload).select().single();
 
@@ -441,7 +453,7 @@ function App() {
 
     const savedProfessional = mapProfessionalFromDb(data);
     if (savedProfessional.email && supabase) {
-      await supabase
+      const { error: userError } = await supabase
         .from("app_users")
         .upsert({
           role: "professional",
@@ -453,13 +465,14 @@ function App() {
           province: savedProfessional.province,
           status: savedProfessional.active ? "Activo" : "Inactivo",
         }, { onConflict: "role,email" });
+
+      if (userError) throw userError;
     }
 
     setProfessionals((currentProfessionals) => {
-      const exists = currentProfessionals.some((item) => item.id === professional.id);
-      return exists
-        ? currentProfessionals.map((item) => item.id === professional.id ? savedProfessional : item)
-        : currentProfessionals.map((item) => item.id === professional.id ? savedProfessional : item);
+      return currentProfessionals.map((item) =>
+        item.id === optimisticId ? savedProfessional : item
+      );
     });
     setSelectedProfessional((current) => current.id === professional.id ? savedProfessional : current);
     setDataNotice("Profesional guardado en Supabase.");
@@ -962,11 +975,6 @@ function Professionals({ goToProfessional, professionals }) {
 
   return (
     <main className="page">
-      {toast && (
-        <div className={`toast ${toast.type}`}>
-          {toast.text}
-        </div>
-      )}
       <div className="section-head">
         <div>
           <p className="eyebrow">Directorio</p>
@@ -1493,7 +1501,6 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
       ? editingProfessional
       : {
           ...editingProfessional,
-          id: Date.now(),
           initials: editingProfessional.initials || "PR",
         };
 
@@ -1503,8 +1510,8 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
       setEditingProfessional(null);
       setProfessionalErrors({});
       showToast("success", "Medico cargado exitosamente.");
-    } catch {
-      showToast("error", "No se pudo guardar el medico. Revisa Supabase o ejecuta el schema.sql actualizado.");
+    } catch (error) {
+      showToast("error", `No se pudo guardar el medico: ${error?.message || "error desconocido"}.`);
     } finally {
       setIsSavingProfessional(false);
     }
@@ -1516,6 +1523,11 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
 
   return (
     <main className="page">
+      {toast && (
+        <div className={`toast ${toast.type}`}>
+          {toast.text}
+        </div>
+      )}
       <div className="section-head">
         <div>
           <p className="eyebrow">Panel profesional</p>
