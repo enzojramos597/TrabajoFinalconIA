@@ -265,25 +265,25 @@ const initialSessions = [
 
 const loginProfiles = [
   {
+    id: "family",
+    title: "Padre / Tutor",
+    description: "Familias que buscan profesionales, reservan turnos y consultan el seguimiento del hijo/a.",
+    email: "familia@email.com",
+    targetPage: "profesionales",
+  },
+  {
+    id: "professional",
+    title: "Profesional",
+    description: "Profesionales que gestionan agenda, pacientes, informes y disponibilidad.",
+    email: "profesional@centro.com",
+    targetPage: "profesional",
+  },
+  {
     id: "admin",
     title: "Administrador",
     description: "Gestion de plataforma, estadisticas, provincias y aprobacion de profesionales.",
     email: "admin@centro.com",
     targetPage: "admin",
-  },
-  {
-    id: "professional",
-    title: "ABM profesionales",
-    description: "Alta, baja y modificacion de profesionales, agenda e informes.",
-    email: "profesional@centro.com",
-    targetPage: "profesional",
-  },
-  {
-    id: "family",
-    title: "Usuario externo",
-    description: "Padre, madre o tutor que busca profesionales y reserva turnos.",
-    email: "familia@email.com",
-    targetPage: "profesionales",
   },
 ];
 
@@ -450,6 +450,36 @@ function App() {
     setDataNotice("Estado del profesional actualizado en Supabase.");
   }
 
+  async function saveUserAccount(profile, data) {
+    if (!supabase) {
+      setDataNotice("Usuario registrado en modo demo local.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("app_users")
+      .insert({
+        role: profile.id,
+        name: data.name,
+        email: data.email,
+        whatsapp: data.whatsapp || "",
+        child_name: data.childName || "",
+        child_age: data.childAge || "",
+        consultation_reason: data.reason || "",
+        specialty: data.specialty || "",
+        license_number: data.licenseNumber || "",
+        province: data.province || "",
+        internal_code: data.internalCode || "",
+      });
+
+    if (error) {
+      setDataNotice("Supabase no pudo registrar el usuario. Revisa si ya existe o falta ejecutar el SQL actualizado.");
+      throw error;
+    }
+
+    setDataNotice(`Usuario ${profile.title} registrado en Supabase.`);
+  }
+
   function goToProfessional(professional) {
     setSelectedProfessional(professional);
     setPage("reserva");
@@ -487,7 +517,11 @@ function App() {
     if (page === "admin") return <AdminPanel appointments={appointments} professionals={professionals} />;
   }
 
-  function handleLogin(profile, data) {
+  async function handleLogin(profile, data, mode) {
+    if (mode === "register") {
+      await saveUserAccount(profile, data);
+    }
+
     const nextSession = {
       role: profile.id,
       roleLabel: profile.title,
@@ -558,27 +592,63 @@ function App() {
 }
 
 function LoginModal({ onClose, onLogin }) {
+  const [mode, setMode] = useState("login");
   const [selectedProfileId, setSelectedProfileId] = useState("family");
   const selectedProfile = loginProfiles.find((profile) => profile.id === selectedProfileId);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
   const [data, setData] = useState({
     name: initialFamily.parentName,
     email: initialFamily.email,
     whatsapp: initialFamily.whatsapp,
     password: "",
+    passwordConfirm: "",
+    childName: initialFamily.childName,
+    childAge: initialFamily.childAge,
+    reason: initialFamily.reason,
+    specialty: "Dificultades de aprendizaje",
+    licenseNumber: "",
+    province: "Buenos Aires",
+    internalCode: "",
   });
 
   function selectProfile(profile) {
     setSelectedProfileId(profile.id);
-    setData({
+    setMessage("");
+    setData((currentData) => ({
+      ...currentData,
       name: profile.id === "family" ? initialFamily.parentName : profile.title,
       email: profile.email,
       whatsapp: profile.id === "family" ? initialFamily.whatsapp : "",
       password: "",
-    });
+      passwordConfirm: "",
+    }));
   }
 
   function updateData(field, value) {
     setData({ ...data, [field]: value });
+  }
+
+  async function submitAccess() {
+    if (!data.name || !data.email || !data.password) {
+      setMessage("Completa nombre, email y clave para continuar.");
+      return;
+    }
+
+    if (mode === "register" && data.password !== data.passwordConfirm) {
+      setMessage("Las claves no coinciden.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setMessage("");
+      await onLogin(selectedProfile, data, mode);
+    } catch {
+      setMessage("No se pudo completar la operacion. Verifica Supabase o intenta con otro email.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -587,10 +657,15 @@ function LoginModal({ onClose, onLogin }) {
         <header className="modal-head">
           <div>
             <p className="eyebrow">Acceso al sistema</p>
-            <h2>Seleccionar perfil</h2>
+            <h2>{mode === "login" ? "Ingresar" : "Registrarse"}</h2>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Cerrar login">x</button>
         </header>
+
+        <div className="auth-switch login-mode" aria-label="Modo de acceso">
+          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Ingresar</button>
+          <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Registrarse</button>
+        </div>
 
         <div className="profile-options">
           {loginProfiles.map((profile) => (
@@ -607,33 +682,97 @@ function LoginModal({ onClose, onLogin }) {
 
         <div className="form-grid">
           <label className="field">
-            <span>Nombre</span>
+            <span>Nombre completo</span>
             <input value={data.name} onChange={(event) => updateData("name", event.target.value)} />
           </label>
           <label className="field">
             <span>Email</span>
             <input type="email" value={data.email} onChange={(event) => updateData("email", event.target.value)} />
           </label>
-          {selectedProfileId === "family" && (
-            <label className="field">
-              <span>WhatsApp</span>
-              <input value={data.whatsapp} onChange={(event) => updateData("whatsapp", event.target.value)} />
-            </label>
-          )}
           <label className="field">
             <span>Clave</span>
             <input type="password" value={data.password} onChange={(event) => updateData("password", event.target.value)} placeholder="********" />
           </label>
+          {mode === "register" && (
+            <label className="field">
+              <span>Repetir clave</span>
+              <input type="password" value={data.passwordConfirm} onChange={(event) => updateData("passwordConfirm", event.target.value)} placeholder="********" />
+            </label>
+          )}
+
+          {selectedProfileId === "family" && (
+            <>
+              <label className="field">
+                <span>WhatsApp</span>
+                <input value={data.whatsapp} onChange={(event) => updateData("whatsapp", event.target.value)} />
+              </label>
+              {mode === "register" && (
+                <>
+                  <label className="field">
+                    <span>Nombre del hijo/a</span>
+                    <input value={data.childName} onChange={(event) => updateData("childName", event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Edad</span>
+                    <input value={data.childAge} onChange={(event) => updateData("childAge", event.target.value)} />
+                  </label>
+                  <label className="field wide">
+                    <span>Motivo de consulta</span>
+                    <textarea value={data.reason} onChange={(event) => updateData("reason", event.target.value)} />
+                  </label>
+                </>
+              )}
+            </>
+          )}
+
+          {selectedProfileId === "professional" && mode === "register" && (
+            <>
+              <label className="field">
+                <span>Especialidad</span>
+                <input value={data.specialty} onChange={(event) => updateData("specialty", event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Matricula</span>
+                <input value={data.licenseNumber} onChange={(event) => updateData("licenseNumber", event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Provincia</span>
+                <select value={data.province} onChange={(event) => updateData("province", event.target.value)}>
+                  {argentinaProvinces.map((province) => <option key={province}>{province}</option>)}
+                </select>
+              </label>
+            </>
+          )}
+
+          {selectedProfileId === "admin" && mode === "register" && (
+            <label className="field">
+              <span>Codigo interno</span>
+              <input value={data.internalCode} onChange={(event) => updateData("internalCode", event.target.value)} />
+            </label>
+          )}
         </div>
 
         <div className="notice">
           <strong>Prototipo de autenticacion</strong>
-          <p>Este acceso simula roles. En la version final se conectaria con Supabase Auth y permisos por perfil.</p>
+          <p>{mode === "login"
+            ? "El ingreso simula una sesion por perfil para navegar el prototipo."
+            : "El registro guarda los datos del perfil en Supabase. La clave no se persiste en texto plano."}</p>
         </div>
 
+        {message && (
+          <div className="notice warn-notice">
+            <strong>Atencion</strong>
+            <p>{message}</p>
+          </div>
+        )}
+
         <div className="actions">
-          <button className="primary-btn" onClick={() => onLogin(selectedProfile, data)}>
-            Entrar como {selectedProfile.title}
+          <button className="primary-btn" onClick={submitAccess} disabled={isSubmitting}>
+            {isSubmitting
+              ? "Procesando..."
+              : mode === "login"
+                ? `Entrar como ${selectedProfile.title}`
+                : `Registrar ${selectedProfile.title}`}
           </button>
           <button className="ghost-btn" onClick={onClose}>Cancelar</button>
         </div>

@@ -792,6 +792,10 @@ textarea {
   background: var(--surface-soft);
 }
 
+.login-mode {
+  margin-bottom: 16px;
+}
+
 .auth-switch button {
   min-height: 34px;
   padding: 7px 10px;
