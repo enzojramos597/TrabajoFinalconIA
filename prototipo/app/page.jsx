@@ -278,13 +278,6 @@ const loginProfiles = [
     email: "profesional@centro.com",
     targetPage: "profesional",
   },
-  {
-    id: "admin",
-    title: "Administrador",
-    description: "Gestion de plataforma, estadisticas, provincias y aprobacion de profesionales.",
-    email: "admin@centro.com",
-    targetPage: "admin",
-  },
 ];
 
 function App() {
@@ -294,6 +287,7 @@ function App() {
   const [isFamilyLoggedIn, setIsFamilyLoggedIn] = useState(false);
   const [session, setSession] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [pendingReservation, setPendingReservation] = useState(false);
   const [family, setFamily] = useState(initialFamily);
   const [appointments, setAppointments] = useState([
     {
@@ -317,7 +311,6 @@ function App() {
     ["recursos", "Recursos"],
     ["familia", "Familia"],
     ["profesional", "Profesional"],
-    ["admin", "Admin"],
   ];
 
   useEffect(() => {
@@ -480,7 +473,37 @@ function App() {
     setDataNotice(`Usuario ${profile.title} registrado en Supabase.`);
   }
 
+  async function findUserAccount(profile, data) {
+    if (!supabase) return null;
+
+    const { data: userAccount, error } = await supabase
+      .from("app_users")
+      .select("*")
+      .eq("role", profile.id)
+      .eq("email", data.email)
+      .maybeSingle();
+
+    if (error) {
+      setDataNotice("No se pudo consultar el usuario en Supabase.");
+      throw error;
+    }
+
+    return userAccount;
+  }
+
   function goToProfessional(professional) {
+    if (session?.role && session.role !== "family") {
+      setDataNotice("Solo los padres o tutores pueden seleccionar profesionales y reservar turnos.");
+      return;
+    }
+
+    if (!session) {
+      setSelectedProfessional(professional);
+      setPendingReservation(true);
+      setShowLogin(true);
+      return;
+    }
+
     setSelectedProfessional(professional);
     setPage("reserva");
   }
@@ -518,15 +541,25 @@ function App() {
   }
 
   async function handleLogin(profile, data, mode) {
+    let userAccount = null;
+
     if (mode === "register") {
       await saveUserAccount(profile, data);
+    } else {
+      userAccount = await findUserAccount(profile, data);
+
+      if (!userAccount && profile.id === "family") {
+        throw new Error("Cuenta no registrada");
+      }
     }
+
+    const accountName = userAccount?.name || data.name || profile.title;
 
     const nextSession = {
       role: profile.id,
       roleLabel: profile.title,
-      name: data.name || profile.title,
-      email: data.email || profile.email,
+      name: accountName,
+      email: userAccount?.email || data.email || profile.email,
     };
 
     setSession(nextSession);
@@ -536,18 +569,23 @@ function App() {
       setIsFamilyLoggedIn(true);
       setFamily({
         ...family,
-        parentName: data.name || family.parentName,
-        email: data.email || family.email,
-        whatsapp: data.whatsapp || family.whatsapp,
+        parentName: accountName,
+        email: userAccount?.email || data.email || family.email,
+        whatsapp: userAccount?.whatsapp || data.whatsapp || family.whatsapp,
+        childName: userAccount?.child_name || data.childName || family.childName,
+        childAge: userAccount?.child_age || data.childAge || family.childAge,
+        reason: userAccount?.consultation_reason || data.reason || family.reason,
       });
     }
 
-    setPage(profile.targetPage);
+    setPage(profile.id === "family" && pendingReservation ? "reserva" : profile.targetPage);
+    setPendingReservation(false);
   }
 
   function handleLogout() {
     setSession(null);
     setIsFamilyLoggedIn(false);
+    setPendingReservation(false);
     setPage("inicio");
   }
 
@@ -569,10 +607,10 @@ function App() {
           ))}
         </nav>
         <div className="top-actions">
-          {session && <span className="role-pill">{session.roleLabel}</span>}
+          {session && <span className="role-pill">{session.name}</span>}
           <button className="ghost-btn" onClick={() => setShowLogin(true)}>Login</button>
           {session && <button className="soft-btn" onClick={handleLogout}>Salir</button>}
-          <button className="soft-btn" onClick={() => setPage("familia")}>Mi panel</button>
+          <button className="soft-btn" onClick={() => setPage(session?.role === "professional" ? "profesional" : "familia")}>Mi panel</button>
           <button className="primary-btn" onClick={() => setPage("profesionales")}>Reservar</button>
         </div>
       </header>
@@ -645,7 +683,9 @@ function LoginModal({ onClose, onLogin }) {
       setMessage("");
       await onLogin(selectedProfile, data, mode);
     } catch {
-      setMessage("No se pudo completar la operacion. Verifica Supabase o intenta con otro email.");
+      setMessage(mode === "login"
+        ? "No encontramos una cuenta con ese correo y perfil. Usa Registrarse para crearla."
+        : "No se pudo completar el registro. Verifica Supabase o intenta con otro email.");
     } finally {
       setIsSubmitting(false);
     }
