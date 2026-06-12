@@ -68,6 +68,11 @@ const initialProfessionals = [
 
 const workHours = ["09:00", "10:00", "11:00", "17:00", "18:00", "19:00"];
 
+function whatsappLink(phone, message) {
+  const cleanPhone = String(phone || "").replace(/\D/g, "");
+  return cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}` : "";
+}
+
 function mapProfessionalFromDb(row) {
   return {
     id: row.id,
@@ -1088,6 +1093,7 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
   const [slot, setSlot] = useState(workHours[0]);
   const [confirmed, setConfirmed] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState(null);
   const [authMode, setAuthMode] = useState("login");
   const [authData, setAuthData] = useState({
     parentName: family.parentName,
@@ -1095,6 +1101,11 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
     whatsapp: family.whatsapp,
     password: "",
   });
+
+  function showToast(type, title, text) {
+    setToast({ type, title, text });
+    window.setTimeout(() => setToast(null), 4200);
+  }
 
   function updateFamily(field, value) {
     setFamily({ ...family, [field]: value });
@@ -1111,15 +1122,17 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
       dateISO: selectedDate,
       time: slot,
       childName: family.childName || "Hijo/a",
-      status: "Confirmado",
+      status: "Reservado",
     };
 
     try {
       setIsSaving(true);
       const savedAppointment = await saveAppointment(appointment);
       setConfirmed(savedAppointment);
+      showToast("success", "Turno en reserva", "El profesional debera aceptar el turno antes de enviar la confirmacion por WhatsApp.");
     } catch {
       setConfirmed(null);
+      showToast("error", "No se pudo reservar", "El horario ya estaba ocupado o no se pudo guardar el turno.");
     } finally {
       setIsSaving(false);
     }
@@ -1159,12 +1172,17 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
   const selectedDateHasAvailableSlots = workHours.some((time) => !isSlotReserved(selectedDate, time));
   const upcomingWeekdays = getUpcomingWeekdays(selectedDate);
 
-  const message = confirmed
-    ? `Hola ${family.parentName}. Confirmamos el turno para ${family.childName} con ${confirmed.professionalName} el ${confirmed.date} en ${selectedProfessional.address}.`
-    : "";
-
   return (
     <main className="page">
+      {toast && (
+        <div className={`toast ${toast.type}`}>
+          <span className="toast-icon">{toast.type === "success" ? "OK" : "!"}</span>
+          <div>
+            <strong>{toast.title}</strong>
+            <p>{toast.text}</p>
+          </div>
+        </div>
+      )}
       <div className="section-head">
         <div>
           <p className="eyebrow">Reserva de turno</p>
@@ -1338,11 +1356,8 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
 
           {confirmed && (
             <div className="notice">
-              <strong>Turno confirmado.</strong>
-              <p>Se genero un mensaje automatico para enviar por WhatsApp.</p>
-              <a className="soft-btn" href={`https://wa.me/${family.whatsapp}?text=${encodeURIComponent(message)}`} target="_blank">
-                Enviar confirmacion
-              </a>
+              <strong>Turno en reserva.</strong>
+              <p>El profesional debera aceptar el turno. Cuando lo acepte, se habilitara el mensaje de confirmacion por WhatsApp para el padre/tutor y el profesional.</p>
             </div>
           )}
             </>
@@ -1384,8 +1399,14 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
                   <h3>{appointment.professionalName}</h3>
                   <p className="muted">{appointment.date} · {appointment.childName}</p>
                 </div>
-                <span className={appointment.status === "Confirmado" ? "tag" : "tag warn"}>{appointment.status}</span>
+                <span className={appointment.status === "Aceptado" ? "tag" : "tag warn"}>{appointment.status}</span>
               </header>
+              {appointment.status === "Reservado" && (
+                <p className="muted">El turno esta reservado y pendiente de aceptacion por el profesional.</p>
+              )}
+              {appointment.status === "Aceptado" && (
+                <p className="muted">El profesional acepto el turno. La confirmacion por WhatsApp ya puede ser enviada.</p>
+              )}
               <div className="actions">
                 <button className="soft-btn">Reprogramar</button>
                 <button className="danger-btn" onClick={() => cancelAppointment(appointment.id)}>Cancelar</button>
@@ -1611,36 +1632,62 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
           <div>
             <h3>Turnos de pacientes</h3>
             {visibleAppointments.length === 0 && <p className="muted">No tenes turnos asignados por el momento.</p>}
-            {visibleAppointments.map((appointment) => (
-              <article className="appointment-card" key={appointment.id}>
-                <header>
-                  <div>
-                    <h3>{appointment.childName}</h3>
-                    <p className="muted">{appointment.date} - {appointment.time}</p>
+            {visibleAppointments.map((appointment) => {
+              const professional = professionals.find((item) => item.id === appointment.professionalId || item.name === appointment.professionalName);
+              const parentMessage = `Hola ${appointment.parentName || "familia"}, el turno de ${appointment.childName} con ${appointment.professionalName} fue aceptado para ${appointment.date}. Direccion: ${professional?.address || "consultorio informado"}.`;
+              const professionalMessage = `Turno aceptado: ${appointment.childName} el ${appointment.date}. Padre/tutor: ${appointment.parentName || "sin datos"}. WhatsApp: ${appointment.whatsapp || "sin datos"}. Motivo: ${appointment.reason || "sin detalle"}.`;
+              const parentWhatsapp = whatsappLink(appointment.whatsapp, parentMessage);
+              const professionalWhatsapp = whatsappLink(professional?.phone, professionalMessage);
+
+              return (
+                <article className="appointment-card" key={appointment.id}>
+                  <header>
+                    <div>
+                      <h3>{appointment.childName}</h3>
+                      <p className="muted">{appointment.date} - {appointment.time}</p>
+                    </div>
+                    <span className={appointment.status === "Cancelado" ? "tag warn" : "tag"}>{appointment.status}</span>
+                  </header>
+                  <p><strong>Padre / Tutor:</strong> {appointment.parentName || "Sin datos cargados"}</p>
+                  {appointment.whatsapp && <p><strong>WhatsApp:</strong> {appointment.whatsapp}</p>}
+                  {appointment.reason && <p className="muted">{appointment.reason}</p>}
+                  <div className="actions">
+                    <button
+                      className="primary-btn"
+                      onClick={() => handleAppointmentStatus(appointment.id, "Aceptado")}
+                      disabled={appointment.status === "Aceptado" || appointment.status === "Cancelado"}
+                    >
+                      Aceptar turno
+                    </button>
+                    <button
+                      className="danger-btn"
+                      onClick={() => handleAppointmentStatus(appointment.id, "Cancelado")}
+                      disabled={appointment.status === "Cancelado"}
+                    >
+                      Cancelar turno
+                    </button>
                   </div>
-                  <span className={appointment.status === "Cancelado" ? "tag warn" : "tag"}>{appointment.status}</span>
-                </header>
-                <p><strong>Padre / Tutor:</strong> {appointment.parentName || "Sin datos cargados"}</p>
-                {appointment.whatsapp && <p><strong>WhatsApp:</strong> {appointment.whatsapp}</p>}
-                {appointment.reason && <p className="muted">{appointment.reason}</p>}
-                <div className="actions">
-                  <button
-                    className="primary-btn"
-                    onClick={() => handleAppointmentStatus(appointment.id, "Aceptado")}
-                    disabled={appointment.status === "Aceptado" || appointment.status === "Cancelado"}
-                  >
-                    Aceptar turno
-                  </button>
-                  <button
-                    className="danger-btn"
-                    onClick={() => handleAppointmentStatus(appointment.id, "Cancelado")}
-                    disabled={appointment.status === "Cancelado"}
-                  >
-                    Cancelar turno
-                  </button>
-                </div>
-              </article>
-            ))}
+                  {appointment.status === "Aceptado" && (
+                    <div className="notice whatsapp-notice">
+                      <strong>Confirmacion habilitada</strong>
+                      <p>El turno ya fue aceptado. Ahora podes enviar los mensajes automaticos por WhatsApp.</p>
+                      <div className="actions">
+                        {parentWhatsapp ? (
+                          <a className="soft-btn" href={parentWhatsapp} target="_blank">WhatsApp al padre/tutor</a>
+                        ) : (
+                          <button className="soft-btn" disabled>Sin WhatsApp del padre</button>
+                        )}
+                        {professionalWhatsapp ? (
+                          <a className="ghost-btn" href={professionalWhatsapp} target="_blank">WhatsApp al profesional</a>
+                        ) : (
+                          <button className="ghost-btn" disabled>Sin WhatsApp profesional</button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
           <div className="form-panel">
             <h3>Cargar informe de sesion</h3>

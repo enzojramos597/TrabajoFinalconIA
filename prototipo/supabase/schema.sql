@@ -39,7 +39,7 @@ create table if not exists public.appointments (
   parent_email text not null,
   whatsapp text not null,
   reason text,
-  status text not null default 'Confirmado',
+  status text not null default 'Reservado',
   created_at timestamptz not null default now(),
   unique (professional_id, date_iso, time)
 );
@@ -68,6 +68,7 @@ alter table public.appointments enable row level security;
 alter table public.app_users enable row level security;
 
 alter table public.app_users add column if not exists password_hash text not null default '';
+alter table public.appointments alter column status set default 'Reservado';
 
 drop policy if exists "Lectura publica de profesionales" on public.professionals;
 create policy "Lectura publica de profesionales"
@@ -132,7 +133,7 @@ on conflict (id) do nothing;
 insert into public.appointments
   (id, professional_id, professional_name, date_label, date_iso, time, child_name, parent_name, parent_email, whatsapp, reason, status)
 values
-  (1, 1, 'Lic. Mariana Torres', 'Miercoles 10/06/2026 10:00', '2026-06-10', '10:00', 'Mateo', 'Carolina Ruiz', 'carolina@email.com', '+5493884322437', 'Dificultades para sostener la atencion y organizar tareas escolares.', 'Confirmado')
+  (1, 1, 'Lic. Mariana Torres', 'Miercoles 10/06/2026 10:00', '2026-06-10', '10:00', 'Mateo', 'Carolina Ruiz', 'carolina@email.com', '+5493884322437', 'Dificultades para sostener la atencion y organizar tareas escolares.', 'Aceptado')
 on conflict (professional_id, date_iso, time) do nothing;
 
 insert into public.app_users
