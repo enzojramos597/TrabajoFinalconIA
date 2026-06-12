@@ -269,20 +269,70 @@ const resources = [
     age: "6 a 12 anos",
     area: "Aprendizaje",
     image: "url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=900&q=80')",
+    summary: "Guia breve para observar lectura, escritura, atencion y autonomia sin alarmar a la familia.",
+    bullets: [
+      "Registrar durante dos semanas situaciones concretas: tarea, lectura, copia, organizacion y descanso.",
+      "Observar si las dificultades aparecen todos los dias o solo ante consignas nuevas o extensas.",
+      "Consultar cuando la dificultad persiste, genera angustia o limita la participacion escolar.",
+    ],
   },
   {
     title: "Ejercicios para organizar rutinas",
     age: "Familias",
     area: "Habitos",
     image: "url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80')",
+    summary: "Propuesta semanal para ordenar horarios, mochila, tareas y pausas activas.",
+    bullets: [
+      "Armar una agenda visual con tres momentos: inicio, tarea principal y cierre.",
+      "Dividir actividades largas en pasos de 15 minutos con pausas breves.",
+      "Revisar mochila y materiales siempre en el mismo horario para crear habito.",
+    ],
   },
   {
     title: "Guia para preparar la primera consulta",
     age: "Todas las edades",
     area: "Orientación",
     image: "url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=900&q=80')",
+    summary: "Material para que la familia llegue a la entrevista inicial con informacion clara y ordenada.",
+    bullets: [
+      "Llevar cuadernos, boletines, informes previos y ejemplos de tareas que resultan dificiles.",
+      "Anotar desde cuando se observa la dificultad y que estrategias ya se intentaron.",
+      "Compartir cambios familiares, escolares o emocionales que puedan influir en el aprendizaje.",
+    ],
+  },
+  {
+    title: "Actividades para fortalecer la atencion",
+    age: "7 a 12 anos",
+    area: "Funciones ejecutivas",
+    image: "url('https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&w=900&q=80')",
+    summary: "Ejercicios simples para entrenar foco, control de impulsos y seguimiento de consignas.",
+    bullets: [
+      "Jugar a repetir secuencias de colores, numeros o movimientos aumentando la dificultad.",
+      "Usar consignas de dos pasos y luego tres pasos, verificando comprension antes de iniciar.",
+      "Cerrar cada actividad con una autoevaluacion breve: que salio bien y que puedo mejorar.",
+    ],
   },
 ];
+
+function guideDownloadHref(resource) {
+  const content = [
+    "PSICO-PUENTE",
+    "Orientacion y seguimiento familiar",
+    "",
+    resource.title,
+    `Edad: ${resource.age}`,
+    `Area: ${resource.area}`,
+    "",
+    resource.summary,
+    "",
+    "Sugerencias:",
+    ...resource.bullets.map((item) => `- ${item}`),
+    "",
+    "Material orientativo generado para el prototipo del Centro Psicopedagogico Psico-Puente.",
+  ].join("\n");
+
+  return `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
+}
 
 const initialFamily = {
   parentName: "Carolina Ruiz",
@@ -695,7 +745,7 @@ function App() {
       setPage,
     };
 
-    if (page === "inicio") return <Home setPage={setPage} goToProfessional={goToProfessional} professionals={professionals} />;
+    if (page === "inicio") return <Home setPage={setPage} goToProfessional={goToProfessional} professionals={professionals} appointments={appointments} />;
     if (page === "profesionales") return <Professionals {...shared} />;
     if (page === "reserva") return <Booking {...shared} />;
     if (page === "mapa") return <MapView goToProfessional={goToProfessional} professionals={professionals} />;
@@ -951,8 +1001,14 @@ function LoginModal({ onClose, onLogin }) {
   );
 }
 
-function Home({ setPage, goToProfessional, professionals }) {
-  const firstActiveProfessional = professionals.find((professional) => professional.active) || professionals[0];
+function Home({ setPage, goToProfessional, professionals, appointments }) {
+  const activeProfessionals = professionals.filter((professional) => professional.active);
+  const firstActiveProfessional = activeProfessionals[0] || professionals[0];
+  const activeProvinceCount = new Set(activeProfessionals.map((professional) => professional.province)).size;
+  const totalWeeklySlots = activeProfessionals.length * workHours.length * 5;
+  const reservedSlots = appointments.filter((appointment) => appointment.status !== "Cancelado").length;
+  const availableWeeklySlots = Math.max(0, totalWeeklySlots - reservedSlots);
+  const specialtyCount = new Set(activeProfessionals.map((professional) => professional.specialty)).size;
   const serviceContent = {
     "*": {
       title: "Diagnóstico y orientación",
@@ -991,9 +1047,9 @@ function Home({ setPage, goToProfessional, professionals }) {
             <button className="ghost-btn" onClick={() => setPage("recursos")}>Ver recursos</button>
           </div>
           <div className="stats">
-            <div className="stat"><strong>4</strong><span>provincias activas</span></div>
-            <div className="stat"><strong>12</strong><span>turnos semanales</span></div>
-            <div className="stat"><strong>3</strong><span>áreas de trabajo</span></div>
+            <div className="stat"><strong>{activeProvinceCount}</strong><span>provincias activas</span></div>
+            <div className="stat"><strong>{availableWeeklySlots}</strong><span>turnos semanales disponibles</span></div>
+            <div className="stat"><strong>{specialtyCount}</strong><span>áreas de trabajo</span></div>
           </div>
         </div>
         <div className="hero-panel" role="img" aria-label="Profesional psicopedagógico trabajando con un paciente en consultorio">
@@ -2189,11 +2245,18 @@ function MapView({ goToProfessional, professionals }) {
 function Resources() {
   return (
     <main className="page">
+      <section className="resource-brand">
+        <img src="/psico-puente-icon.png" alt="" aria-hidden="true" />
+        <div>
+          <strong>PSICO-PUENTE</strong>
+          <span>Orientación y seguimiento familiar</span>
+        </div>
+      </section>
       <div className="section-head">
         <div>
           <p className="eyebrow">Actividades y recursos</p>
           <h2>Guías para acompañar desde casa</h2>
-          <p>Material orientativo ordenado por edad y area de trabajo.</p>
+          <p>Material orientativo generado para familias, ordenado por edad y area de trabajo.</p>
         </div>
       </div>
       <section className="grid">
@@ -2201,12 +2264,26 @@ function Resources() {
           <article className="resource-card" key={resource.title}>
             <div className="resource-media" style={{ "--image": resource.image }} />
             <div className="content">
+              <div className="resource-card-brand">
+                <img src="/psico-puente-icon.png" alt="" aria-hidden="true" />
+                <span>PSICO-PUENTE</span>
+              </div>
               <h3>{resource.title}</h3>
+              <p className="muted">{resource.summary}</p>
               <div className="tags">
                 <span className="tag">{resource.age}</span>
                 <span className="tag blue">{resource.area}</span>
               </div>
-              <button className="soft-btn">Descargar guia</button>
+              <ul className="guide-list">
+                {resource.bullets.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+              <a
+                className="soft-btn"
+                href={guideDownloadHref(resource)}
+                download={`${resource.title.toLowerCase().replaceAll(" ", "-")}.txt`}
+              >
+                Descargar guia
+              </a>
             </div>
           </article>
         ))}

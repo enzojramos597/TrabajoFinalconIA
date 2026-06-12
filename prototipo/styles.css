@@ -1315,6 +1315,41 @@ textarea {
   overflow: hidden;
 }
 
+.resource-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f3f2fb 0%, #ffffff 64%);
+}
+
+.resource-brand img {
+  width: 82px;
+  height: 62px;
+  object-fit: contain;
+  background: white;
+  border-radius: 8px;
+}
+
+.resource-brand strong,
+.resource-brand span {
+  display: block;
+}
+
+.resource-brand strong {
+  color: var(--brand);
+  font-size: 30px;
+  font-weight: 850;
+}
+
+.resource-brand span {
+  color: var(--muted);
+  font-size: 20px;
+}
+
 .resource-media {
   height: 130px;
   background:
@@ -1324,6 +1359,31 @@ textarea {
 
 .resource-card .content {
   padding: 16px;
+}
+
+.resource-card-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--brand);
+  font-weight: 850;
+}
+
+.resource-card-brand img {
+  width: 42px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.guide-list {
+  padding-left: 18px;
+  margin: 12px 0 16px;
+  color: var(--muted);
+}
+
+.guide-list li + li {
+  margin-top: 6px;
 }
 
 .empty {
