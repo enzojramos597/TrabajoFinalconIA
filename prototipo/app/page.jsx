@@ -265,74 +265,58 @@ const argentinaProvinces = [
 
 const resources = [
   {
-    title: "Senales de alerta en edad escolar",
+    title: "Rutina visual para organizar tareas",
     age: "6 a 12 anos",
-    area: "Aprendizaje",
+    area: "Organizacion y autonomia",
     image: "url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=900&q=80')",
-    summary: "Guia breve para observar lectura, escritura, atencion y autonomia sin alarmar a la familia.",
+    summary: "Herramienta para anticipar pasos, sostener la atencion y terminar tareas escolares con menos acompanamiento adulto.",
+    pdf: "/recursos/rutina-visual-tareas.pdf",
     bullets: [
-      "Registrar durante dos semanas situaciones concretas: tarea, lectura, copia, organizacion y descanso.",
-      "Observar si las dificultades aparecen todos los dias o solo ante consignas nuevas o extensas.",
-      "Consultar cuando la dificultad persiste, genera angustia o limita la participacion escolar.",
+      "Preparar tres momentos: preparar, hacer y revisar.",
+      "Usar un temporizador de 15 minutos.",
+      "Cerrar marcando que paso fue mas facil y cual necesita ayuda.",
     ],
   },
   {
-    title: "Ejercicios para organizar rutinas",
-    age: "Familias",
-    area: "Habitos",
-    image: "url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80')",
-    summary: "Propuesta semanal para ordenar horarios, mochila, tareas y pausas activas.",
-    bullets: [
-      "Armar una agenda visual con tres momentos: inicio, tarea principal y cierre.",
-      "Dividir actividades largas en pasos de 15 minutos con pausas breves.",
-      "Revisar mochila y materiales siempre en el mismo horario para crear habito.",
-    ],
-  },
-  {
-    title: "Guia para preparar la primera consulta",
-    age: "Todas las edades",
-    area: "Orientación",
-    image: "url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=900&q=80')",
-    summary: "Material para que la familia llegue a la entrevista inicial con informacion clara y ordenada.",
-    bullets: [
-      "Llevar cuadernos, boletines, informes previos y ejemplos de tareas que resultan dificiles.",
-      "Anotar desde cuando se observa la dificultad y que estrategias ya se intentaron.",
-      "Compartir cambios familiares, escolares o emocionales que puedan influir en el aprendizaje.",
-    ],
-  },
-  {
-    title: "Actividades para fortalecer la atencion",
+    title: "Juego de atencion y seguimiento de consignas",
     age: "7 a 12 anos",
-    area: "Funciones ejecutivas",
-    image: "url('https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&w=900&q=80')",
-    summary: "Ejercicios simples para entrenar foco, control de impulsos y seguimiento de consignas.",
+    area: "Atencion y funciones ejecutivas",
+    image: "url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80')",
+    summary: "Ejercicio ludico para entrenar escucha, memoria de trabajo y control de impulsos con consignas breves.",
+    pdf: "/recursos/juego-atencion-consignas.pdf",
     bullets: [
-      "Jugar a repetir secuencias de colores, numeros o movimientos aumentando la dificultad.",
-      "Usar consignas de dos pasos y luego tres pasos, verificando comprension antes de iniciar.",
-      "Cerrar cada actividad con una autoevaluacion breve: que salio bien y que puedo mejorar.",
+      "Comenzar con consignas de dos pasos.",
+      "Aumentar dificultad cuando logra resolver sin repetir.",
+      "Cerrar preguntando que estrategia ayudo a recordar.",
+    ],
+  },
+  {
+    title: "Lectura compartida para mejorar comprension",
+    age: "6 a 10 anos",
+    area: "Lectura y comprension",
+    image: "url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=900&q=80')",
+    summary: "Actividad para fortalecer comprension lectora, vocabulario y expresion oral en un momento breve de lectura familiar.",
+    pdf: "/recursos/lectura-compartida-comprension.pdf",
+    bullets: [
+      "Leer un parrafo corto y anticipar que puede pasar.",
+      "Elegir tres palabras importantes.",
+      "Dibujar la escena principal y responder quien, que y por que.",
+    ],
+  },
+  {
+    title: "Semaforo emocional antes de estudiar",
+    age: "Todas las edades",
+    area: "Emociones y aprendizaje",
+    image: "url('https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&w=900&q=80')",
+    summary: "Herramienta para reconocer el estado emocional antes de iniciar tareas y elegir una estrategia de regulacion.",
+    pdf: "/recursos/semaforo-emocional-aprendizaje.pdf",
+    bullets: [
+      "Elegir rojo, amarillo o verde antes de estudiar.",
+      "Aplicar pausa, pedido de ayuda o inicio segun el color.",
+      "Volver a elegir color al terminar para comparar cambios.",
     ],
   },
 ];
-
-function guideDownloadHref(resource) {
-  const content = [
-    "PSICO-PUENTE",
-    "Orientacion y seguimiento familiar",
-    "",
-    resource.title,
-    `Edad: ${resource.age}`,
-    `Area: ${resource.area}`,
-    "",
-    resource.summary,
-    "",
-    "Sugerencias:",
-    ...resource.bullets.map((item) => `- ${item}`),
-    "",
-    "Material orientativo generado para el prototipo del Centro Psicopedagogico Psico-Puente.",
-  ].join("\n");
-
-  return `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
-}
 
 const initialFamily = {
   parentName: "Carolina Ruiz",
@@ -2254,9 +2238,9 @@ function Resources() {
       </section>
       <div className="section-head">
         <div>
-          <p className="eyebrow">Actividades y recursos</p>
-          <h2>Guías para acompañar desde casa</h2>
-          <p>Material orientativo generado para familias, ordenado por edad y area de trabajo.</p>
+          <p className="eyebrow">Herramientas y ejercicios</p>
+          <h2>Actividades para realizar en casa</h2>
+          <p>Ejercicios descargables en PDF para que el nino pueda trabajar con sus padres o tutores.</p>
         </div>
       </div>
       <section className="grid">
@@ -2279,10 +2263,10 @@ function Resources() {
               </ul>
               <a
                 className="soft-btn"
-                href={guideDownloadHref(resource)}
-                download={`${resource.title.toLowerCase().replaceAll(" ", "-")}.txt`}
+                href={resource.pdf}
+                download
               >
-                Descargar guia
+                Descargar PDF
               </a>
             </div>
           </article>
