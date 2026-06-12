@@ -122,6 +122,10 @@ function mapAppointmentFromDb(row) {
     dateISO: row.date_iso,
     time: row.time,
     childName: row.child_name,
+    parentName: row.parent_name,
+    parentEmail: row.parent_email,
+    whatsapp: row.whatsapp,
+    reason: row.reason,
     status: row.status,
   };
 }
@@ -416,6 +420,33 @@ function App() {
     return savedAppointment;
   }
 
+  async function updateAppointmentStatus(appointmentId, status) {
+    const previousAppointments = appointments;
+    setAppointments((currentAppointments) =>
+      currentAppointments.map((appointment) =>
+        appointment.id === appointmentId ? { ...appointment, status } : appointment
+      )
+    );
+
+    if (!supabase) {
+      setDataNotice(`Turno marcado como ${status.toLowerCase()} en modo demo local.`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status })
+      .eq("id", appointmentId);
+
+    if (error) {
+      setAppointments(previousAppointments);
+      setDataNotice("No se pudo actualizar el estado del turno en Supabase.");
+      throw error;
+    }
+
+    setDataNotice(`Turno marcado como ${status.toLowerCase()} en Supabase.`);
+  }
+
   async function saveProfessionalRecord(professional) {
     const previousProfessionals = professionals;
     const isExistingProfessional = Boolean(
@@ -625,6 +656,7 @@ function App() {
       session,
       goToProfessional,
       saveAppointment,
+      updateAppointmentStatus,
       saveProfessionalRecord,
       toggleProfessionalRecord,
       updateUserStatus,
@@ -1413,7 +1445,7 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
   );
 }
 
-function ProfessionalPanel({ appointments, sessions, setSessions, session, professionals, saveProfessionalRecord, toggleProfessionalRecord }) {
+function ProfessionalPanel({ appointments, sessions, setSessions, session, professionals, saveProfessionalRecord, toggleProfessionalRecord, updateAppointmentStatus }) {
   const visibleAppointments = session?.role === "professional"
     ? appointments.filter((appointment) => appointment.professionalName === session.name)
     : appointments;
@@ -1538,6 +1570,103 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
 
   async function toggleProfessionalStatus(professional) {
     await toggleProfessionalRecord(professional);
+  }
+
+  async function handleAppointmentStatus(appointmentId, status) {
+    try {
+      await updateAppointmentStatus(appointmentId, status);
+      showToast(
+        "success",
+        status === "Aceptado" ? "Turno aceptado" : "Turno cancelado",
+        status === "Aceptado"
+          ? "El turno quedo confirmado en tu agenda profesional."
+          : "El turno fue cancelado y ya no queda activo para la atencion."
+      );
+    } catch (error) {
+      showToast("error", "No se pudo actualizar", error?.message || "Revisa la conexion con Supabase.");
+    }
+  }
+
+  if (session?.role === "professional") {
+    return (
+      <main className="page">
+        {toast && (
+          <div className={`toast ${toast.type}`}>
+            <span className="toast-icon">{toast.type === "success" ? "OK" : "!"}</span>
+            <div>
+              <strong>{toast.title}</strong>
+              <p>{toast.text}</p>
+            </div>
+          </div>
+        )}
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">Panel medico</p>
+            <h2>Agenda de turnos</h2>
+            <p>Consulta los turnos asignados a tu perfil y gestiona cada solicitud.</p>
+          </div>
+          <span className="role-pill">Sesion: {session.email}</span>
+        </div>
+        <section className="dashboard-layout">
+          <div>
+            <h3>Turnos de pacientes</h3>
+            {visibleAppointments.length === 0 && <p className="muted">No tenes turnos asignados por el momento.</p>}
+            {visibleAppointments.map((appointment) => (
+              <article className="appointment-card" key={appointment.id}>
+                <header>
+                  <div>
+                    <h3>{appointment.childName}</h3>
+                    <p className="muted">{appointment.date} - {appointment.time}</p>
+                  </div>
+                  <span className={appointment.status === "Cancelado" ? "tag warn" : "tag"}>{appointment.status}</span>
+                </header>
+                <p><strong>Padre / Tutor:</strong> {appointment.parentName || "Sin datos cargados"}</p>
+                {appointment.whatsapp && <p><strong>WhatsApp:</strong> {appointment.whatsapp}</p>}
+                {appointment.reason && <p className="muted">{appointment.reason}</p>}
+                <div className="actions">
+                  <button
+                    className="primary-btn"
+                    onClick={() => handleAppointmentStatus(appointment.id, "Aceptado")}
+                    disabled={appointment.status === "Aceptado" || appointment.status === "Cancelado"}
+                  >
+                    Aceptar turno
+                  </button>
+                  <button
+                    className="danger-btn"
+                    onClick={() => handleAppointmentStatus(appointment.id, "Cancelado")}
+                    disabled={appointment.status === "Cancelado"}
+                  >
+                    Cancelar turno
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="form-panel">
+            <h3>Cargar informe de sesion</h3>
+            <div className="form-grid">
+              <label className="field">
+                <span>Fecha</span>
+                <input value={report.date} onChange={(event) => setReport({ ...report, date: event.target.value })} />
+              </label>
+              <label className="field">
+                <span>Progreso</span>
+                <input type="number" min="0" max="100" value={report.progress} onChange={(event) => setReport({ ...report, progress: Number(event.target.value) })} />
+              </label>
+              <label className="field wide">
+                <span>Objetivos trabajados</span>
+                <textarea value={report.objectives} onChange={(event) => setReport({ ...report, objectives: event.target.value })} />
+              </label>
+              <label className="field wide">
+                <span>Observaciones</span>
+                <textarea value={report.notes} onChange={(event) => setReport({ ...report, notes: event.target.value })} />
+              </label>
+            </div>
+            <button className="primary-btn" onClick={saveReport}>Guardar informe</button>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (

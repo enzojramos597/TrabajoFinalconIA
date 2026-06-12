@@ -94,6 +94,13 @@ on public.appointments for insert
 to anon, authenticated
 with check (true);
 
+drop policy if exists "Actualizacion demo de turnos" on public.appointments;
+create policy "Actualizacion demo de turnos"
+on public.appointments for update
+to anon, authenticated
+using (true)
+with check (true);
+
 drop policy if exists "Lectura demo de usuarios" on public.app_users;
 create policy "Lectura demo de usuarios"
 on public.app_users for select
