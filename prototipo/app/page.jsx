@@ -407,6 +407,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
   const [pendingReservation, setPendingReservation] = useState(false);
+  const [appToast, setAppToast] = useState(null);
   const [family, setFamily] = useState(initialFamily);
   const [appointments, setAppointments] = useState([
     {
@@ -832,6 +833,12 @@ function App() {
         childAge: userAccount?.child_age || data.childAge || family.childAge,
         reason: userAccount?.consultation_reason || data.reason || family.reason,
       });
+      setAppToast({
+        type: "success",
+        title: `Bienvenido, ${accountName}`,
+        text: "Ingresaste correctamente al panel familiar.",
+      });
+      window.setTimeout(() => setAppToast(null), 4200);
     }
 
     setPage(profile.id === "family" && pendingReservation ? "reserva" : profile.targetPage);
@@ -870,13 +877,20 @@ function App() {
           {(!session || session.role === "family") && <button className="primary-btn" onClick={() => setPage("profesionales")}>Reservar</button>}
         </div>
       </header>
-      <div className={hasSupabaseConfig ? "data-status synced" : "data-status"}>
-        {dataNotice}
-      </div>
+      {appToast && (
+        <div className={`toast ${appToast.type}`}>
+          <span className="toast-icon">{appToast.type === "success" ? "OK" : "!"}</span>
+          <div>
+            <strong>{appToast.title}</strong>
+            <p>{appToast.text}</p>
+          </div>
+        </div>
+      )}
       {renderPage()}
       {showLogin && (
         <LoginModal
           session={session}
+          appUsers={appUsers}
           onClose={() => setShowLogin(false)}
           onLogin={handleLogin}
         />
@@ -885,10 +899,11 @@ function App() {
   );
 }
 
-function LoginModal({ onClose, onLogin }) {
+function LoginModal({ onClose, onLogin, appUsers = [] }) {
   const [mode, setMode] = useState("login");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState({});
   const [data, setData] = useState({
     name: "",
     email: "",
@@ -906,21 +921,58 @@ function LoginModal({ onClose, onLogin }) {
 
   function updateData(field, value) {
     setData({ ...data, [field]: value });
+    setErrors((currentErrors) => ({ ...currentErrors, [field]: "" }));
+    setMessage("");
+  }
+
+  function changeMode(nextMode) {
+    setMode(nextMode);
+    setMessage("");
+    setErrors({});
+  }
+
+  function emailIsValid(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  function emailIsRegistered(value) {
+    return appUsers.some((user) => user.email?.toLowerCase() === value.toLowerCase());
+  }
+
+  function fieldClass(field) {
+    const base = "field";
+    if (errors[field]) return `${base} invalid`;
+    if (field === "email" && data.email && emailIsValid(data.email) && (mode === "register" || emailIsRegistered(data.email))) return `${base} valid`;
+    if (field === "password" && data.password.length >= 6) return `${base} valid`;
+    if (field === "passwordConfirm" && data.passwordConfirm && data.passwordConfirm === data.password) return `${base} valid`;
+    if (field === "name" && data.name.trim()) return `${base} valid`;
+    return base;
+  }
+
+  function validateAccess() {
+    const nextErrors = {};
+
+    if (!data.email.trim()) nextErrors.email = "Ingresa tu correo electronico.";
+    else if (!emailIsValid(data.email)) nextErrors.email = "Ingresa un correo valido.";
+    else if (mode === "login" && appUsers.length > 0 && !emailIsRegistered(data.email)) nextErrors.email = "Ese correo no esta registrado.";
+
+    if (!data.password) nextErrors.password = "Ingresa tu contrasena.";
+    else if (data.password.length < 6) nextErrors.password = "La contrasena debe tener al menos 6 caracteres.";
+
+    if (mode === "register") {
+      if (!data.name.trim()) nextErrors.name = "Completa el nombre completo.";
+      if (!data.passwordConfirm) nextErrors.passwordConfirm = "Repite la contrasena.";
+      else if (data.password !== data.passwordConfirm) nextErrors.passwordConfirm = "Las claves no coinciden.";
+    }
+
+    setErrors(nextErrors);
+    return nextErrors;
   }
 
   async function submitAccess() {
-    if (!data.email || !data.password) {
-      setMessage("Completa correo y contrasena para continuar.");
-      return;
-    }
-
-    if (mode === "register" && !data.name) {
-      setMessage("Completa el nombre completo para registrarte.");
-      return;
-    }
-
-    if (mode === "register" && data.password !== data.passwordConfirm) {
-      setMessage("Las claves no coinciden.");
+    const nextErrors = validateAccess();
+    if (Object.keys(nextErrors).length > 0) {
+      setMessage("Revisa los campos marcados para continuar.");
       return;
     }
 
@@ -928,7 +980,11 @@ function LoginModal({ onClose, onLogin }) {
       setIsSubmitting(true);
       setMessage("");
       await onLogin(roleConfig.family, data, mode);
-    } catch {
+    } catch (error) {
+      if (mode === "login") {
+        const text = error?.message || "";
+        setErrors(text.includes("Contrasena") ? { password: "Contrasena incorrecta." } : { email: "Cuenta no registrada." });
+      }
       setMessage(mode === "login"
         ? "No encontramos una cuenta con ese correo y perfil. Usa Registrarse para crearla."
         : "No se pudo completar el registro. Verifica Supabase o intenta con otro email.");
@@ -939,13 +995,13 @@ function LoginModal({ onClose, onLogin }) {
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Login por perfil">
-      <section className="login-modal">
+      <form className="login-modal" onSubmit={(event) => { event.preventDefault(); submitAccess(); }}>
         <header className="modal-head">
           <div>
             <p className="eyebrow">Acceso al sistema</p>
             <h2>{mode === "login" ? "Iniciar sesion" : "Crear cuenta"}</h2>
           </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Cerrar login">x</button>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Cerrar login">x</button>
         </header>
 
         <p className="login-intro">
@@ -956,23 +1012,27 @@ function LoginModal({ onClose, onLogin }) {
 
         <div className="form-grid">
           {mode === "register" && (
-            <label className="field">
+            <label className={fieldClass("name")}>
               <span>Nombre completo</span>
               <input value={data.name} onChange={(event) => updateData("name", event.target.value)} placeholder="Ej: Enzo Ramos" />
+              {errors.name && <small className="field-error">{errors.name}</small>}
             </label>
           )}
-          <label className="field">
+          <label className={fieldClass("email")}>
             <span>Correo electronico</span>
             <input type="email" value={data.email} onChange={(event) => updateData("email", event.target.value)} placeholder="Ej: enzo.j.ramos@gmail.com" />
+            {errors.email && <small className="field-error">{errors.email}</small>}
           </label>
-          <label className="field">
+          <label className={fieldClass("password")}>
             <span>Contrasena</span>
             <input type="password" value={data.password} onChange={(event) => updateData("password", event.target.value)} placeholder="********" />
+            {errors.password && <small className="field-error">{errors.password}</small>}
           </label>
           {mode === "register" && (
-            <label className="field">
+            <label className={fieldClass("passwordConfirm")}>
               <span>Repetir contrasena</span>
               <input type="password" value={data.passwordConfirm} onChange={(event) => updateData("passwordConfirm", event.target.value)} placeholder="********" />
+              {errors.passwordConfirm && <small className="field-error">{errors.passwordConfirm}</small>}
             </label>
           )}
 
@@ -1000,9 +1060,9 @@ function LoginModal({ onClose, onLogin }) {
 
         <div className="login-helper">
           {mode === "login" ? (
-            <p>No tenes cuenta? <button onClick={() => setMode("register")}>Registrarse</button></p>
+            <p>No tenes cuenta? <button type="button" onClick={() => changeMode("register")}>Registrarse</button></p>
           ) : (
-            <p>Ya tenes cuenta? <button onClick={() => setMode("login")}>Iniciar sesion</button></p>
+            <p>Ya tenes cuenta? <button type="button" onClick={() => changeMode("login")}>Iniciar sesion</button></p>
           )}
         </div>
 
@@ -1021,16 +1081,16 @@ function LoginModal({ onClose, onLogin }) {
         )}
 
         <div className="actions">
-          <button className="primary-btn" onClick={submitAccess} disabled={isSubmitting}>
+          <button type="submit" className="primary-btn" disabled={isSubmitting}>
             {isSubmitting
               ? "Procesando..."
               : mode === "login"
                 ? "Ingresar"
                 : "Registrarme como padre/tutor"}
           </button>
-          <button className="ghost-btn" onClick={onClose}>Cancelar</button>
+          <button type="button" className="ghost-btn" onClick={onClose}>Cancelar</button>
         </div>
-      </section>
+      </form>
     </div>
   );
 }
@@ -1503,7 +1563,7 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
       <div className="section-head">
         <div>
           <p className="eyebrow">Panel familiar</p>
-          <h2>Hola, {family.parentName}</h2>
+          <h2>Hola, {family.parentName}!</h2>
           <p>Consulta turnos, historial de sesiones y evolución de {family.childName}.</p>
         </div>
       </div>
