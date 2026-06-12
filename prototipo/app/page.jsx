@@ -163,6 +163,28 @@ function parseDateInput(value) {
   return new Date(`${value}T00:00:00`);
 }
 
+function formatClinicalDate(value) {
+  if (!value) return "";
+  const date = value.includes("/") ? null : parseDateInput(value);
+  if (!date || Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("es-AR");
+}
+
+function sessionDateValue(session) {
+  if (session.dateISO) return session.dateISO;
+  if (!session.date || !session.date.includes("/")) return session.date || "";
+  const [day, month, year] = session.date.split("/");
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
+
+function sortClinicalSessions(items) {
+  return [...items].sort((a, b) => sessionDateValue(b).localeCompare(sessionDateValue(a)));
+}
+
+function clampProgress(value) {
+  return Math.max(0, Math.min(100, Number(value) || 0));
+}
+
 function addDays(date, amount) {
   const nextDate = new Date(date);
   nextDate.setDate(nextDate.getDate() + amount);
@@ -274,14 +296,18 @@ const initialFamily = {
 const initialSessions = [
   {
     date: "04/06/2026",
+    dateISO: "2026-06-04",
     professional: "Lic. Mariana Torres",
+    childName: "Mateo",
     objectives: "Organizacion de consignas y lectura comprensiva.",
     notes: "Se observo buena respuesta a apoyos visuales y pausas breves.",
     progress: 62,
   },
   {
     date: "09/06/2026",
+    dateISO: "2026-06-09",
     professional: "Lic. Mariana Torres",
+    childName: "Mateo",
     objectives: "Planificación de tareas y seguimiento de instrucciones.",
     notes: "La familia aplico rutina semanal. Se recomienda sostener el mismo formato.",
     progress: 76,
@@ -1370,6 +1396,9 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
 
 function FamilyPanel({ family, setFamily, appointments, setAppointments, sessions }) {
   const [tab, setTab] = useState("turnos");
+  const childSessions = sortClinicalSessions(
+    sessions.filter((item) => !item.childName || item.childName === family.childName)
+  );
 
   function cancelAppointment(id) {
     setAppointments(appointments.map((item) => item.id === id ? { ...item, status: "Cancelado" } : item));
@@ -1418,7 +1447,11 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
 
       {tab === "historial" && (
         <section>
-          {sessions.map((session) => <SessionRow key={session.date} session={session} />)}
+          <ClinicalReportViewer
+            sessions={childSessions}
+            title={`Informe clinico de ${family.childName}`}
+            emptyText="Todavia no hay informes cargados por el profesional."
+          />
         </section>
       )}
 
@@ -1428,13 +1461,20 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
             <h3>Progreso general</h3>
             <p className="muted">Gráfico simple construido con los registros de sesión.</p>
             <div className="chart">
-              {sessions.map((session) => <div key={session.date} className="bar" style={{ height: `${session.progress}%` }} title={`${session.progress}%`} />)}
+              {childSessions.map((session) => <div key={`${session.date}-${session.objectives}`} className="bar" style={{ height: `${session.progress}%` }} title={`${session.progress}%`} />)}
             </div>
           </article>
           <article className="card">
-            <h3>Proximos pasos</h3>
-            <p>Continuar con rutinas visuales, pausas activas y seguimiento semanal de consignas escolares.</p>
-            <div className="progress"><span style={{ width: "76%" }} /></div>
+            <h3>Ultimo avance</h3>
+            {childSessions[0] ? (
+              <>
+                <p className="muted">{childSessions[0].date} - {childSessions[0].professional}</p>
+                <p>{childSessions[0].notes}</p>
+                <div className="progress"><span style={{ width: `${childSessions[0].progress}%` }} /></div>
+              </>
+            ) : (
+              <p className="muted">Sin informes clinicos cargados.</p>
+            )}
           </article>
         </section>
       )}
@@ -1470,6 +1510,12 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
   const visibleAppointments = session?.role === "professional"
     ? appointments.filter((appointment) => appointment.professionalName === session.name)
     : appointments;
+  const patientOptions = [...new Set(visibleAppointments.map((appointment) => appointment.childName).filter(Boolean))];
+  const [selectedPatient, setSelectedPatient] = useState("");
+  const activePatient = selectedPatient || patientOptions[0] || "";
+  const clinicalSessions = sortClinicalSessions(
+    sessions.filter((item) => !activePatient || item.childName === activePatient)
+  );
   const emptyProfessional = {
     id: null,
     name: "",
@@ -1497,7 +1543,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
   const [professionalErrors, setProfessionalErrors] = useState({});
   const [toast, setToast] = useState(null);
   const [report, setReport] = useState({
-    date: "10/06/2026",
+    date: "2026-06-10",
     professional: "Lic. Mariana Torres",
     objectives: "Comprension de consignas y planificacion semanal.",
     notes: "Se trabajo con agenda visual y consignas divididas en pasos.",
@@ -1505,7 +1551,35 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
   });
 
   function saveReport() {
-    setSessions([report, ...sessions]);
+    if (!activePatient) {
+      showToast("error", "Selecciona un paciente", "Necesitas tener un paciente asignado para guardar el informe.");
+      return;
+    }
+
+    if (!report.date || !report.objectives.trim() || !report.notes.trim()) {
+      showToast("error", "Faltan datos", "Completa fecha, objetivos y observaciones para guardar el informe clinico.");
+      return;
+    }
+
+    const nextReport = {
+      ...report,
+      id: Date.now(),
+      date: formatClinicalDate(report.date),
+      dateISO: report.date,
+      childName: activePatient,
+      professional: session?.name || report.professional,
+      progress: clampProgress(report.progress),
+    };
+
+    setSessions([nextReport, ...sessions]);
+    showToast("success", "Informe guardado", `El informe clinico de ${activePatient} fue agregado al historial.`);
+    setReport({
+      date: toDateInputValue(new Date()),
+      professional: session?.name || report.professional,
+      objectives: "",
+      notes: "",
+      progress: nextReport.progress,
+    });
   }
 
   function startNewProfessional() {
@@ -1692,13 +1766,21 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
           <div className="form-panel">
             <h3>Cargar informe de sesion</h3>
             <div className="form-grid">
+              <label className="field wide">
+                <span>Paciente</span>
+                <select value={activePatient} onChange={(event) => setSelectedPatient(event.target.value)}>
+                  {patientOptions.length === 0 && <option value="">Sin pacientes asignados</option>}
+                  {patientOptions.map((patient) => <option key={patient} value={patient}>{patient}</option>)}
+                </select>
+              </label>
               <label className="field">
                 <span>Fecha</span>
-                <input value={report.date} onChange={(event) => setReport({ ...report, date: event.target.value })} />
+                <input type="date" value={report.date} onChange={(event) => setReport({ ...report, date: event.target.value })} />
               </label>
               <label className="field">
                 <span>Progreso</span>
                 <input type="number" min="0" max="100" value={report.progress} onChange={(event) => setReport({ ...report, progress: Number(event.target.value) })} />
+                <input type="range" min="0" max="100" value={report.progress} onChange={(event) => setReport({ ...report, progress: Number(event.target.value) })} />
               </label>
               <label className="field wide">
                 <span>Objetivos trabajados</span>
@@ -1710,6 +1792,11 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
               </label>
             </div>
             <button className="primary-btn" onClick={saveReport}>Guardar informe</button>
+            <ClinicalReportViewer
+              sessions={clinicalSessions}
+              title={activePatient ? `Evolucion clinica de ${activePatient}` : "Evolucion clinica"}
+              emptyText="Todavia no hay informes cargados para este paciente."
+            />
           </div>
         </section>
       </main>
@@ -2155,13 +2242,63 @@ function Faq({ embedded = false }) {
   );
 }
 
+function ClinicalReportViewer({ sessions, title, emptyText }) {
+  const [page, setPage] = useState(0);
+  const orderedSessions = sortClinicalSessions(sessions);
+  const currentPage = Math.min(page, Math.max(orderedSessions.length - 1, 0));
+  const currentSession = orderedSessions[currentPage];
+
+  useEffect(() => {
+    if (page > Math.max(orderedSessions.length - 1, 0)) {
+      setPage(0);
+    }
+  }, [orderedSessions.length, page]);
+
+  if (orderedSessions.length === 0) {
+    return (
+      <article className="clinical-report empty">
+        <h3>{title}</h3>
+        <p className="muted">{emptyText}</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className="clinical-report">
+      <header>
+        <div>
+          <h3>{title}</h3>
+          <p className="muted">Informe {currentPage + 1} de {orderedSessions.length}, ordenado por fecha.</p>
+        </div>
+        <div className="pagination-controls">
+          <button className="soft-btn" onClick={() => setPage(Math.max(currentPage - 1, 0))} disabled={currentPage === 0}>Anterior</button>
+          <button className="soft-btn" onClick={() => setPage(Math.min(currentPage + 1, orderedSessions.length - 1))} disabled={currentPage === orderedSessions.length - 1}>Siguiente</button>
+        </div>
+      </header>
+      <SessionRow session={currentSession} />
+      <div className="clinical-timeline">
+        {orderedSessions.map((sessionItem, index) => (
+          <button
+            key={`${sessionItem.date}-${index}`}
+            className={index === currentPage ? "active" : ""}
+            onClick={() => setPage(index)}
+            aria-label={`Ver informe ${sessionItem.date}`}
+          >
+            {sessionItem.date}
+          </button>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 function SessionRow({ session }) {
   return (
     <article className="session-row">
       <header>
         <div>
           <h3>{session.date}</h3>
-          <p className="muted">{session.professional}</p>
+          <p className="muted">{session.professional}{session.childName ? ` - ${session.childName}` : ""}</p>
         </div>
         <span className="tag">{session.progress}% progreso</span>
       </header>

@@ -1006,6 +1006,54 @@ textarea {
   margin-bottom: 12px;
 }
 
+.clinical-report {
+  padding: 16px;
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+}
+
+.clinical-report > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.clinical-report.empty {
+  background: white;
+}
+
+.pagination-controls,
+.clinical-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.clinical-timeline {
+  margin-top: 10px;
+}
+
+.clinical-timeline button {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.clinical-timeline button.active {
+  border-color: var(--brand);
+  background: #f0f0fb;
+  color: var(--brand);
+}
+
 .appointment-card header,
 .session-row header {
   display: flex;
