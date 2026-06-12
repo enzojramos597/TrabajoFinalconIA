@@ -73,6 +73,18 @@ function whatsappLink(phone, message) {
   return cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}` : "";
 }
 
+function appointmentDateTime(appointment) {
+  if (!appointment?.dateISO) return null;
+  const time = appointment.time || "00:00";
+  const date = new Date(`${appointment.dateISO}T${time}:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isUpcomingAppointment(appointment) {
+  const date = appointmentDateTime(appointment);
+  return Boolean(date && date >= new Date());
+}
+
 function mapProfessionalFromDb(row) {
   return {
     id: row.id,
@@ -1436,6 +1448,10 @@ function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, se
 
 function FamilyPanel({ family, setFamily, appointments, setAppointments, sessions }) {
   const [tab, setTab] = useState("turnos");
+  const upcomingFamilyAppointments = appointments
+    .filter((appointment) => appointment.status !== "Cancelado")
+    .filter(isUpcomingAppointment)
+    .sort((a, b) => appointmentDateTime(a) - appointmentDateTime(b));
   const childSessions = sortClinicalSessions(
     sessions.filter((item) => !item.childName || item.childName === family.childName)
   );
@@ -1461,7 +1477,10 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
 
       {tab === "turnos" && (
         <section>
-          {appointments.map((appointment) => (
+          {upcomingFamilyAppointments.length === 0 && (
+            <div className="empty">No tenes turnos próximos activos.</div>
+          )}
+          {upcomingFamilyAppointments.map((appointment) => (
             <article className="appointment-card" key={appointment.id}>
               <header>
                 <div>
@@ -1474,12 +1493,14 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
                 <p className="muted">El turno esta reservado y pendiente de aceptacion por el profesional.</p>
               )}
               {appointment.status === "Aceptado" && (
-                <p className="muted">El profesional acepto el turno. La confirmacion por WhatsApp ya puede ser enviada.</p>
+                <p className="muted">El profesional acepto el turno. Ya no se puede reprogramar ni cancelar desde el panel familiar.</p>
               )}
-              <div className="actions">
-                <button className="soft-btn">Reprogramar</button>
-                <button className="danger-btn" onClick={() => cancelAppointment(appointment.id)}>Cancelar</button>
-              </div>
+              {appointment.status === "Reservado" && (
+                <div className="actions">
+                  <button className="soft-btn">Reprogramar</button>
+                  <button className="danger-btn" onClick={() => cancelAppointment(appointment.id)}>Cancelar</button>
+                </div>
+              )}
             </article>
           ))}
         </section>
