@@ -1062,6 +1062,19 @@ textarea {
   margin-bottom: 8px;
 }
 
+.reschedule-panel {
+  padding: 14px;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+}
+
+.reschedule-panel h4 {
+  margin-bottom: 10px;
+  color: var(--brand);
+}
+
 .progress {
   height: 12px;
   overflow: hidden;

@@ -85,6 +85,10 @@ function isUpcomingAppointment(appointment) {
   return Boolean(date && date >= new Date());
 }
 
+function isAcceptedAppointment(appointment) {
+  return appointment?.status === "Aceptado" || appointment?.status === "Confirmado";
+}
+
 function mapProfessionalFromDb(row) {
   return {
     id: row.id,
@@ -524,6 +528,39 @@ function App() {
     setDataNotice(`Turno marcado como ${status.toLowerCase()} en Supabase.`);
   }
 
+  async function updateAppointmentRecord(appointmentId, changes) {
+    const previousAppointments = appointments;
+    setAppointments((currentAppointments) =>
+      currentAppointments.map((appointment) =>
+        appointment.id === appointmentId ? { ...appointment, ...changes } : appointment
+      )
+    );
+
+    if (!supabase) {
+      setDataNotice("Turno actualizado en modo demo local.");
+      return;
+    }
+
+    const updatePayload = {};
+    if (changes.date !== undefined) updatePayload.date_label = changes.date;
+    if (changes.dateISO !== undefined) updatePayload.date_iso = changes.dateISO;
+    if (changes.time !== undefined) updatePayload.time = changes.time;
+    if (changes.status !== undefined) updatePayload.status = changes.status;
+
+    const { error } = await supabase
+      .from("appointments")
+      .update(updatePayload)
+      .eq("id", appointmentId);
+
+    if (error) {
+      setAppointments(previousAppointments);
+      setDataNotice("No se pudo reprogramar el turno en Supabase.");
+      throw error;
+    }
+
+    setDataNotice("Turno reprogramado en Supabase.");
+  }
+
   async function saveProfessionalRecord(professional) {
     const previousProfessionals = professionals;
     const isExistingProfessional = Boolean(
@@ -734,6 +771,7 @@ function App() {
       goToProfessional,
       saveAppointment,
       updateAppointmentStatus,
+      updateAppointmentRecord,
       saveProfessionalRecord,
       toggleProfessionalRecord,
       updateUserStatus,
@@ -1487,12 +1525,12 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
                   <h3>{appointment.professionalName}</h3>
                   <p className="muted">{appointment.date} · {appointment.childName}</p>
                 </div>
-                <span className={appointment.status === "Aceptado" ? "tag" : "tag warn"}>{appointment.status}</span>
+                <span className={isAcceptedAppointment(appointment) ? "tag" : "tag warn"}>{appointment.status}</span>
               </header>
               {appointment.status === "Reservado" && (
                 <p className="muted">El turno esta reservado y pendiente de aceptacion por el profesional.</p>
               )}
-              {appointment.status === "Aceptado" && (
+              {isAcceptedAppointment(appointment) && (
                 <p className="muted">El profesional acepto el turno. Ya no se puede reprogramar ni cancelar desde el panel familiar.</p>
               )}
               {appointment.status === "Reservado" && (
@@ -1567,7 +1605,7 @@ function FamilyPanel({ family, setFamily, appointments, setAppointments, session
   );
 }
 
-function ProfessionalPanel({ appointments, sessions, setSessions, session, professionals, saveProfessionalRecord, toggleProfessionalRecord, updateAppointmentStatus }) {
+function ProfessionalPanel({ appointments, sessions, setSessions, session, professionals, saveProfessionalRecord, toggleProfessionalRecord, updateAppointmentStatus, updateAppointmentRecord }) {
   const visibleAppointments = session?.role === "professional"
     ? appointments.filter((appointment) => appointment.professionalName === session.name)
     : appointments;
@@ -1602,6 +1640,7 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
   const [editingProfessional, setEditingProfessional] = useState(null);
   const [isSavingProfessional, setIsSavingProfessional] = useState(false);
   const [professionalErrors, setProfessionalErrors] = useState({});
+  const [rescheduleDraft, setRescheduleDraft] = useState(null);
   const [toast, setToast] = useState(null);
   const [report, setReport] = useState({
     date: "2026-06-10",
@@ -1743,6 +1782,57 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
     }
   }
 
+  function startReschedule(appointment) {
+    setRescheduleDraft({
+      appointmentId: appointment.id,
+      dateISO: appointment.dateISO || getInitialBookingDate(),
+      time: appointment.time || workHours[0],
+    });
+  }
+
+  function isProfessionalSlotReserved(professionalId, dateISO, time, currentAppointmentId) {
+    return appointments.some((appointment) =>
+      appointment.id !== currentAppointmentId &&
+      appointment.professionalId === professionalId &&
+      appointment.dateISO === dateISO &&
+      appointment.time === time &&
+      appointment.status !== "Cancelado"
+    );
+  }
+
+  function updateRescheduleDraft(field, value) {
+    setRescheduleDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+  }
+
+  async function confirmReschedule(appointment) {
+    if (!rescheduleDraft || rescheduleDraft.appointmentId !== appointment.id) return;
+
+    if (!isWeekday(rescheduleDraft.dateISO)) {
+      showToast("error", "Dia no disponible", "Selecciona una fecha de lunes a viernes.");
+      return;
+    }
+
+    if (isProfessionalSlotReserved(appointment.professionalId, rescheduleDraft.dateISO, rescheduleDraft.time, appointment.id)) {
+      showToast("error", "Horario ocupado", "Ese horario ya esta reservado para este profesional.");
+      return;
+    }
+
+    const nextDate = formatAppointmentLabel(rescheduleDraft.dateISO, rescheduleDraft.time);
+
+    try {
+      await updateAppointmentRecord(appointment.id, {
+        date: nextDate,
+        dateISO: rescheduleDraft.dateISO,
+        time: rescheduleDraft.time,
+        status: "Aceptado",
+      });
+      setRescheduleDraft(null);
+      showToast("success", "Turno reprogramado", "El nuevo horario quedo actualizado para la familia y el profesional.");
+    } catch (error) {
+      showToast("error", "No se pudo reprogramar", error?.message || "Revisa la conexion con Supabase.");
+    }
+  }
+
   if (session?.role === "professional") {
     return (
       <main className="page">
@@ -1769,10 +1859,11 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
             {visibleAppointments.length === 0 && <p className="muted">No tenes turnos asignados por el momento.</p>}
             {visibleAppointments.map((appointment) => {
               const professional = professionals.find((item) => item.id === appointment.professionalId || item.name === appointment.professionalName);
-              const parentMessage = `Hola ${appointment.parentName || "familia"}, el turno de ${appointment.childName} con ${appointment.professionalName} fue aceptado para ${appointment.date}. Direccion: ${professional?.address || "consultorio informado"}.`;
+              const parentMessage = `Hola ${appointment.parentName || "familia"}, el turno de ${appointment.childName} con ${appointment.professionalName} fue confirmado/reprogramado para ${appointment.date}. Direccion: ${professional?.address || "consultorio informado"}.`;
               const professionalMessage = `Turno aceptado: ${appointment.childName} el ${appointment.date}. Padre/tutor: ${appointment.parentName || "sin datos"}. WhatsApp: ${appointment.whatsapp || "sin datos"}. Motivo: ${appointment.reason || "sin detalle"}.`;
               const parentWhatsapp = whatsappLink(appointment.whatsapp, parentMessage);
               const professionalWhatsapp = whatsappLink(professional?.phone, professionalMessage);
+              const isRescheduling = rescheduleDraft?.appointmentId === appointment.id;
 
               return (
                 <article className="appointment-card" key={appointment.id}>
@@ -1786,26 +1877,61 @@ function ProfessionalPanel({ appointments, sessions, setSessions, session, profe
                   <p><strong>Padre / Tutor:</strong> {appointment.parentName || "Sin datos cargados"}</p>
                   {appointment.whatsapp && <p><strong>WhatsApp:</strong> {appointment.whatsapp}</p>}
                   {appointment.reason && <p className="muted">{appointment.reason}</p>}
-                  <div className="actions">
-                    <button
-                      className="primary-btn"
-                      onClick={() => handleAppointmentStatus(appointment.id, "Aceptado")}
-                      disabled={appointment.status === "Aceptado" || appointment.status === "Cancelado"}
-                    >
-                      Aceptar turno
-                    </button>
-                    <button
-                      className="danger-btn"
-                      onClick={() => handleAppointmentStatus(appointment.id, "Cancelado")}
-                      disabled={appointment.status === "Cancelado"}
-                    >
-                      Cancelar turno
-                    </button>
-                  </div>
-                  {appointment.status === "Aceptado" && (
+                  {appointment.status === "Reservado" && (
+                    <div className="actions">
+                      <button className="primary-btn" onClick={() => handleAppointmentStatus(appointment.id, "Aceptado")}>
+                        Aceptar turno
+                      </button>
+                      <button className="danger-btn" onClick={() => handleAppointmentStatus(appointment.id, "Cancelado")}>
+                        Cancelar turno
+                      </button>
+                    </div>
+                  )}
+                  {isAcceptedAppointment(appointment) && (
+                    <div className="actions">
+                      <button className="soft-btn" onClick={() => startReschedule(appointment)}>
+                        Reprogramar turno
+                      </button>
+                    </div>
+                  )}
+                  {appointment.status === "Cancelado" && (
+                    <p className="muted">Este turno fue cancelado y no admite nuevas acciones.</p>
+                  )}
+                  {isRescheduling && (
+                    <div className="reschedule-panel">
+                      <h4>Reprogramar turno</h4>
+                      <div className="form-grid">
+                        <label className="field">
+                          <span>Fecha</span>
+                          <input type="date" value={rescheduleDraft.dateISO} onChange={(event) => updateRescheduleDraft("dateISO", event.target.value)} />
+                        </label>
+                        <label className="field">
+                          <span>Horario</span>
+                          <select value={rescheduleDraft.time} onChange={(event) => updateRescheduleDraft("time", event.target.value)}>
+                            {workHours.map((time) => {
+                              const reserved = isProfessionalSlotReserved(appointment.professionalId, rescheduleDraft.dateISO, time, appointment.id);
+                              return (
+                                <option key={time} value={time} disabled={reserved}>
+                                  {time}{reserved ? " - ocupado" : ""}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </label>
+                      </div>
+                      {!isWeekday(rescheduleDraft.dateISO) && (
+                        <p className="muted">Selecciona una fecha de lunes a viernes.</p>
+                      )}
+                      <div className="actions">
+                        <button className="primary-btn" onClick={() => confirmReschedule(appointment)}>Guardar reprogramacion</button>
+                        <button className="ghost-btn" onClick={() => setRescheduleDraft(null)}>Cerrar</button>
+                      </div>
+                    </div>
+                  )}
+                  {isAcceptedAppointment(appointment) && (
                     <div className="notice whatsapp-notice">
                       <strong>Confirmacion habilitada</strong>
-                      <p>El turno ya fue aceptado. Ahora podes enviar los mensajes automaticos por WhatsApp.</p>
+                      <p>El turno esta aceptado. Si fue reprogramado, avisa al padre/tutor por WhatsApp con la nueva fecha.</p>
                       <div className="actions">
                         {parentWhatsapp ? (
                           <a className="soft-btn" href={parentWhatsapp} target="_blank">WhatsApp al padre/tutor</a>
