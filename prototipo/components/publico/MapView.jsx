@@ -5,10 +5,9 @@ import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps
 import { argentinaProvinces } from "../../lib/constants";
 import { mapsUrl } from "../../lib/utils";
 
-const GEO_URL =
-  "https://raw.githubusercontent.com/deldersveld/topojson/master/countries/argentina/argentina-provinces.json";
+const GEO_URL = "/argentina-provinces.json";
 
-// Nombre del topojson → nombre interno (sin acentos, como en constants.js)
+// name del GeoJSON (Natural Earth) → nombre interno sin acentos (constants.js)
 const GEO_TO_INTERNAL = {
   "Buenos Aires": "Buenos Aires",
   Catamarca: "Catamarca",
@@ -33,18 +32,11 @@ const GEO_TO_INTERNAL = {
   "Santiago del Estero": "Santiago del Estero",
   "Tierra del Fuego": "Tierra del Fuego",
   "Tucumán": "Tucuman",
-  "Ciudad Autónoma de Buenos Aires": "CABA",
   "Ciudad de Buenos Aires": "CABA",
 };
 
 function getGeoName(properties) {
-  return (
-    properties.NAME_1 ||
-    properties.name ||
-    properties.NAME ||
-    properties.provincia ||
-    ""
-  );
+  return properties.name || properties.NAME_1 || "";
 }
 
 export default function MapView({ goToProfessional, professionals }) {
