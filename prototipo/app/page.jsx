@@ -369,14 +369,10 @@ export default function App() {
       return;
     }
 
-    if (!session) {
-      setSelectedProfessional(professional);
-      setPendingReservation(true);
-      setShowLogin(true);
-      return;
-    }
-
     setSelectedProfessional(professional);
+    if (!session) {
+      setPendingReservation(true);
+    }
     setPage("reserva");
   }
 

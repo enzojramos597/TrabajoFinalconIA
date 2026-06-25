@@ -1207,30 +1207,95 @@ textarea {
 
 .map-visual {
   position: relative;
-  min-height: 480px;
+  min-height: 1120px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #dce8e4;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.96), transparent 28%),
+    linear-gradient(180deg, #f8fbfc 0%, #eef6f7 100%);
   overflow: hidden;
 }
 
-.argentina-iframe {
+.map-canvas {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  filter: saturate(0.82) contrast(0.96);
+}
+
+.argentina-map-image {
+  position: absolute;
+  top: 90px;
+  left: 18px;
+  width: min(100%, 520px);
+  height: auto;
+  border-radius: 8px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 28px rgba(55, 67, 74, 0.14));
 }
 
 .map-overlay {
   position: absolute;
-  inset: 20px;
-  z-index: 1;
+  inset: 18px 18px auto 18px;
+  z-index: 4;
   display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 16px;
+  gap: 12px;
   pointer-events: none;
+}
+
+.province-map-layer {
+  position: absolute;
+  top: 90px;
+  left: 18px;
+  width: min(100%, 520px);
+  height: 890px;
+  z-index: 3;
+}
+
+.province-region-button {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.province-region-fill {
+  position: absolute;
+  display: block;
+  background: rgba(207, 215, 218, 0);
+  border: 1px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.province-region-label {
+  position: relative;
+  display: block;
+  padding: 2px 4px;
+  color: #fbfbf8;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+}
+
+.province-region-button.has-professional .province-region-label {
+  color: #ffffff;
+}
+
+.province-region-button.active {
+  z-index: 2;
+}
+
+.province-region-button.active .province-region-fill {
+  background: rgba(215, 76, 93, 0.56);
+  border-color: rgba(161, 51, 64, 0.72);
+  box-shadow: 0 0 0 2px rgba(215, 76, 93, 0.12);
+}
+
+.province-region-button.active .province-region-label {
+  color: #fff0f2;
 }
 
 .argentina-title {
@@ -1249,13 +1314,20 @@ textarea {
   font-size: 13px;
 }
 
-.province-grid {
-  align-self: end;
+.province-grid-panel {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  z-index: 4;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 7px;
-  max-width: 760px;
-  pointer-events: auto;
+  padding: 14px;
+  border: 1px solid rgba(103, 105, 144, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(6px);
 }
 
 .province-chip {
@@ -1277,8 +1349,8 @@ textarea {
 }
 
 .province-chip.active {
-  border-color: var(--brand);
-  background: var(--brand);
+  border-color: #a13340;
+  background: #d74c5d;
   color: white;
 }
 
@@ -1295,6 +1367,10 @@ textarea {
   color: white;
   box-shadow: var(--shadow);
   font-weight: 900;
+}
+
+.pin:hover {
+  transform: translateY(-2px);
 }
 
 .map-list {
@@ -1453,7 +1529,27 @@ textarea {
 
   .hero-panel,
   .map-visual {
-    min-height: 360px;
+    min-height: 920px;
+  }
+
+  .argentina-map-image,
+  .province-map-layer {
+    left: 10px;
+    width: calc(100% - 20px);
+  }
+
+  .province-map-layer {
+    height: 760px;
+  }
+
+  .province-grid-panel {
+    left: 10px;
+    right: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .province-region-label {
+    font-size: 9px;
   }
 
   .grid,
