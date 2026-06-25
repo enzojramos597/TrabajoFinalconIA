@@ -82,8 +82,8 @@ export default function MapView({ goToProfessional, professionals }) {
 
           <ComposableMap
             projection="geoMercator"
-            projectionConfig={{ scale: 750, center: [-65, -40] }}
-            viewBox="0 0 500 700"
+            projectionConfig={{ scale: 1100, center: [-65, -38] }}
+            viewBox="0 0 500 900"
             style={{ width: "100%", height: "auto", display: "block" }}
           >
             <Geographies geography={GEO_URL}>

@@ -1213,7 +1213,7 @@ textarea {
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.96), transparent 28%),
     linear-gradient(180deg, #f8fbfc 0%, #eef6f7 100%);
   overflow: hidden;
-  padding: 18px 18px 200px;
+  padding: 14px 14px 210px;
 }
 
 
