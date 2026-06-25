@@ -11,19 +11,12 @@ import {
   mapsUrl,
 } from "../../lib/utils";
 
-export default function Booking({ selectedProfessional, family, setFamily, isFamilyLoggedIn, setIsFamilyLoggedIn, appointments, saveAppointment, setPage }) {
+export default function Booking({ selectedProfessional, family, setFamily, session, setShowLogin, appointments, saveAppointment, setPage }) {
   const [selectedDate, setSelectedDate] = useState(getInitialBookingDate());
   const [slot, setSlot] = useState(workHours[0]);
   const [confirmed, setConfirmed] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState(null);
-  const [authMode, setAuthMode] = useState("login");
-  const [authData, setAuthData] = useState({
-    parentName: family.parentName,
-    email: family.email,
-    whatsapp: family.whatsapp,
-    password: "",
-  });
 
   function showToast(type, title, text) {
     setToast({ type, title, text });
@@ -68,20 +61,6 @@ export default function Booking({ selectedProfessional, family, setFamily, isFam
       appointment.time === time &&
       appointment.status !== "Cancelado"
     );
-  }
-
-  function updateAuth(field, value) {
-    setAuthData({ ...authData, [field]: value });
-  }
-
-  function accessFamilyAccount() {
-    setFamily({
-      ...family,
-      parentName: authData.parentName || family.parentName,
-      email: authData.email || family.email,
-      whatsapp: authData.whatsapp || family.whatsapp,
-    });
-    setIsFamilyLoggedIn(true);
   }
 
   function updateSelectedDate(dateISO) {
@@ -132,52 +111,15 @@ export default function Booking({ selectedProfessional, family, setFamily, isFam
         </aside>
 
         <section className="form-panel">
-          {!isFamilyLoggedIn ? (
+          {(!session || session.role !== "family") ? (
             <>
-              <div className="auth-head">
-                <div>
-                  <h3>Acceso de padre o tutor</h3>
-                  <p className="muted">Para reservar un turno, primero ingresa con una cuenta familiar.</p>
-                </div>
-                <div className="auth-switch" aria-label="Modo de acceso">
-                  <button className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>
-                    Ingresar
-                  </button>
-                  <button className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>
-                    Registrarse
-                  </button>
-                </div>
+              <div className="notice">
+                <strong>Iniciá sesión para continuar</strong>
+                <p>Para reservar un turno necesitás ingresar con una cuenta de padre o tutor.</p>
               </div>
-
-              <div className="form-grid">
-                <label className="field">
-                  <span>Nombre del padre/tutor</span>
-                  <input value={authData.parentName} onChange={(event) => updateAuth("parentName", event.target.value)} />
-                </label>
-                <label className="field">
-                  <span>Email</span>
-                  <input type="email" value={authData.email} onChange={(event) => updateAuth("email", event.target.value)} />
-                </label>
-                <label className="field">
-                  <span>WhatsApp</span>
-                  <input value={authData.whatsapp} onChange={(event) => updateAuth("whatsapp", event.target.value)} />
-                </label>
-                <label className="field">
-                  <span>Contraseña</span>
-                  <input type="password" value={authData.password} onChange={(event) => updateAuth("password", event.target.value)} placeholder="********" />
-                </label>
-              </div>
-
-              {authMode === "register" && (
-                <div className="notice">
-                  <strong>Cuenta familiar</strong>
-                  <p>Con esta cuenta se guardaran los turnos, el historial y los informes del hijo/a.</p>
-                </div>
-              )}
-
               <div className="actions">
-                <button className="primary-btn" onClick={accessFamilyAccount}>
-                  {authMode === "login" ? "Ingresar y continuar" : "Crear cuenta y continuar"}
+                <button className="primary-btn" onClick={() => setShowLogin(true)}>
+                  Iniciar sesión / Registrarse
                 </button>
                 <button className="ghost-btn" onClick={() => setPage("profesionales")}>Volver</button>
               </div>
@@ -273,7 +215,7 @@ export default function Booking({ selectedProfessional, family, setFamily, isFam
                 <button className="primary-btn" onClick={confirmBooking} disabled={isSaving || !selectedDateIsWeekday || isSlotReserved(selectedDate, slot)}>
                   {isSaving ? "Guardando..." : "Confirmar turno"}
                 </button>
-                <button className="ghost-btn" onClick={() => setPage("familia")}>Ir al panel</button>
+                <button className="ghost-btn" onClick={() => setPage("familia")}>Ir a mi panel</button>
               </div>
 
               {confirmed && (

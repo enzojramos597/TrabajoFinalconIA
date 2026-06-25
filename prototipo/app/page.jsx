@@ -452,6 +452,7 @@ export default function App() {
     selectedProfessional,
     setSelectedProfessional,
     session,
+    setShowLogin,
     goToProfessional,
     saveAppointment,
     updateAppointmentStatus,

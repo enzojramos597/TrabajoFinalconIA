@@ -4,112 +4,57 @@ import { useState } from "react";
 import { argentinaProvinces } from "../../lib/constants";
 import { mapsUrl } from "../../lib/utils";
 
-const provinceMapAreas = {
-  Jujuy: {
-    label: { top: "4%", left: "40%" },
-    region: { top: "0.8%", left: "30%", width: "19%", height: "9%", clipPath: "polygon(42% 0%, 100% 10%, 85% 100%, 0% 88%, 8% 22%)" },
-  },
-  Salta: {
-    label: { top: "9%", left: "37%" },
-    region: { top: "6.5%", left: "20%", width: "33%", height: "16%", clipPath: "polygon(18% 0%, 100% 8%, 78% 100%, 0% 88%, 4% 26%)" },
-  },
-  Formosa: {
-    label: { top: "8%", left: "69%" },
-    region: { top: "5%", left: "53%", width: "22%", height: "13%", clipPath: "polygon(0% 24%, 78% 0%, 100% 30%, 62% 100%, 7% 80%)" },
-  },
-  Chaco: {
-    label: { top: "16%", left: "57%" },
-    region: { top: "13%", left: "48%", width: "18%", height: "14%", clipPath: "polygon(10% 0%, 100% 7%, 92% 100%, 0% 89%)" },
-  },
-  Catamarca: {
-    label: { top: "10.5%", left: "11%" },
-    region: { top: "11.2%", left: "13%", width: "18%", height: "12%", clipPath: "polygon(25% 0%, 100% 13%, 75% 100%, 0% 84%, 0% 26%)" },
-  },
-  Tucuman: {
-    label: { top: "9.8%", left: "6.8%" },
-    region: { top: "13%", left: "28%", width: "9%", height: "8%", clipPath: "polygon(24% 0%, 100% 10%, 87% 100%, 0% 86%, 8% 16%)" },
-  },
-  "Santiago del Estero": {
-    label: { top: "16%", left: "44%" },
-    region: { top: "14%", left: "35%", width: "18%", height: "16%", clipPath: "polygon(8% 0%, 100% 4%, 92% 100%, 0% 92%)" },
-  },
-  Corrientes: {
-    label: { top: "22.5%", left: "74%" },
-    region: { top: "18%", left: "66%", width: "15%", height: "14%", clipPath: "polygon(14% 0%, 100% 16%, 81% 100%, 0% 84%)" },
-  },
-  Misiones: {
-    label: { top: "8.2%", left: "92%" },
-    region: { top: "8%", left: "81%", width: "10%", height: "12%", clipPath: "polygon(18% 0%, 100% 12%, 80% 100%, 0% 86%)" },
-  },
-  "La Rioja": {
-    label: { top: "22.5%", left: "28%" },
-    region: { top: "18%", left: "20%", width: "15%", height: "14%", clipPath: "polygon(20% 0%, 100% 10%, 88% 100%, 0% 90%, 5% 16%)" },
-  },
-  Cordoba: {
-    label: { top: "28.5%", left: "42%" },
-    region: { top: "24%", left: "34%", width: "18%", height: "14%", clipPath: "polygon(18% 0%, 100% 6%, 92% 100%, 0% 88%)" },
-  },
-  "Santa Fe": {
-    label: { top: "22.5%", left: "56%" },
-    region: { top: "22%", left: "52%", width: "12%", height: "16%", clipPath: "polygon(12% 0%, 100% 6%, 90% 100%, 0% 92%)" },
-  },
-  "Entre Rios": {
-    label: { top: "24.8%", left: "66%" },
-    region: { top: "25.5%", left: "63%", width: "10%", height: "13%", clipPath: "polygon(22% 0%, 100% 20%, 82% 100%, 0% 88%, 8% 12%)" },
-  },
-  "San Juan": {
-    label: { top: "24.8%", left: "18%" },
-    region: { top: "22%", left: "13%", width: "11%", height: "15%", clipPath: "polygon(28% 0%, 100% 12%, 82% 100%, 0% 88%, 6% 22%)" },
-  },
-  Mendoza: {
-    label: { top: "35.5%", left: "22%" },
-    region: { top: "30%", left: "13%", width: "16%", height: "17%", clipPath: "polygon(24% 0%, 100% 10%, 92% 100%, 0% 92%, 4% 16%)" },
-  },
-  "San Luis": {
-    label: { top: "33.2%", left: "34%" },
-    region: { top: "31.5%", left: "31%", width: "12%", height: "12%", clipPath: "polygon(18% 0%, 100% 8%, 88% 100%, 0% 90%)" },
-  },
-  "La Pampa": {
-    label: { top: "46.5%", left: "27%" },
-    region: { top: "42%", left: "19%", width: "26%", height: "14%", clipPath: "polygon(10% 0%, 100% 0%, 90% 100%, 0% 92%)" },
-  },
-  "Buenos Aires": {
-    label: { top: "39%", left: "52%" },
-    region: { top: "33.5%", left: "40%", width: "30%", height: "24%", clipPath: "polygon(8% 0%, 88% 2%, 100% 40%, 82% 100%, 24% 86%, 0% 42%)" },
-  },
-  CABA: {
-    label: { top: "46%", left: "59%" },
-    region: { top: "45.5%", left: "57%", width: "2.6%", height: "3.2%", clipPath: "circle(48% at 50% 50%)" },
-  },
-  Neuquen: {
-    label: { top: "54%", left: "14%" },
-    region: { top: "49%", left: "9%", width: "16%", height: "12%", clipPath: "polygon(8% 12%, 100% 0%, 82% 100%, 0% 92%)" },
-  },
-  "Rio Negro": {
-    label: { top: "63.5%", left: "22%" },
-    region: { top: "59%", left: "12%", width: "28%", height: "10%", clipPath: "polygon(5% 8%, 100% 0%, 92% 100%, 0% 88%)" },
-  },
-  Chubut: {
-    label: { top: "79.5%", left: "22%" },
-    region: { top: "72%", left: "8%", width: "28%", height: "14%", clipPath: "polygon(12% 0%, 100% 0%, 92% 100%, 0% 92%)" },
-  },
-  "Santa Cruz": {
-    label: { top: "94%", left: "13%" },
-    region: { top: "85.5%", left: "0.8%", width: "32%", height: "17%", clipPath: "polygon(20% 0%, 100% 4%, 78% 100%, 0% 90%, 4% 24%)" },
-  },
-  "Tierra del Fuego": {
-    label: { top: "98%", left: "36%" },
-    region: { top: "96.2%", left: "21%", width: "15%", height: "6%", clipPath: "polygon(26% 0%, 100% 10%, 74% 100%, 0% 84%)" },
-  },
+// SVG viewBox: "0 0 210 470"
+// Provincias dibujadas como polígonos aproximados, no solapados
+const PROVINCE_DATA = {
+  Jujuy:                 { points: "92,2 116,2 122,20 114,34 94,33 87,17",                                           pin: [104, 18] },
+  Salta:                 { points: "34,0 92,0 87,17 94,33 114,34 122,20 116,2 128,2 132,34 120,64 90,72 50,64 30,48 22,30 30,12", pin: [76, 38] },
+  Formosa:               { points: "128,2 168,0 178,26 168,55 124,60 132,34",                                        pin: [150, 30] },
+  Chaco:                 { points: "132,34 168,50 170,88 148,92 124,88 124,64 132,34",                               pin: [146, 66] },
+  Misiones:              { points: "168,50 194,38 196,90 168,88",                                                    pin: [180, 66] },
+  Corrientes:            { points: "148,88 168,88 180,102 174,138 145,144 122,133 122,110",                          pin: [150, 114] },
+  Tucuman:               { points: "78,62 100,60 102,84 93,94 77,90",                                               pin: [88, 76] },
+  Catamarca:             { points: "22,62 78,62 77,90 73,114 30,112 16,90 18,66",                                   pin: [48, 88] },
+  "Santiago del Estero": { points: "100,60 124,58 148,63 147,108 123,120 94,117 80,96",                             pin: [116, 88] },
+  "Entre Rios":          { points: "122,133 174,138 175,168 154,188 122,178 116,156",                               pin: [144, 158] },
+  "La Rioja":            { points: "16,110 73,114 80,135 80,160 58,172 26,166 13,140",                              pin: [48, 140] },
+  Cordoba:               { points: "52,120 123,120 147,135 144,185 116,196 78,188 50,168",                          pin: [100, 156] },
+  "Santa Fe":            { points: "147,108 168,104 175,138 175,180 144,185 147,136",                               pin: [158, 146] },
+  "San Juan":            { points: "10,156 58,172 70,178 64,204 35,210 9,190",                                      pin: [38, 182] },
+  Mendoza:               { points: "8,188 64,204 74,194 78,234 68,258 40,267 10,254 5,222",                         pin: [44, 226] },
+  "San Luis":            { points: "50,188 116,196 120,228 96,242 50,230 44,206",                                   pin: [82, 212] },
+  "La Pampa":            { points: "78,248 148,236 158,248 154,282 124,292 78,284",                                 pin: [116, 264] },
+  "Buenos Aires":        { points: "110,196 175,180 198,196 204,222 196,271 174,291 128,294 106,273",               pin: [160, 244] },
+  CABA:                  { points: "174,240 183,240 183,252 174,252",                                               pin: [178, 246] },
+  Neuquen:               { points: "5,254 40,266 78,284 70,316 30,324 5,296",                                       pin: [40, 290] },
+  "Rio Negro":           { points: "5,296 70,314 148,306 158,320 126,326 46,330 5,318",                             pin: [80, 314] },
+  Chubut:                { points: "4,328 126,325 158,332 152,378 122,384 42,380 4,366",                            pin: [78, 355] },
+  "Santa Cruz":          { points: "3,368 122,382 153,388 142,433 110,440 38,434 3,420",                            pin: [74, 405] },
+  "Tierra del Fuego":    { points: "30,436 105,435 98,458 32,458",                                                  pin: [65, 446] },
 };
+
+// Orden de renderizado: provincias grandes primero, pequeñas encima
+const RENDER_ORDER = [
+  "Buenos Aires", "La Pampa", "Santa Cruz", "Chubut", "Rio Negro",
+  "Salta", "Cordoba", "Mendoza", "Neuquen", "Corrientes",
+  "Santiago del Estero", "Chaco", "Formosa", "Santa Fe", "Entre Rios",
+  "San Juan", "Catamarca", "La Rioja", "San Luis", "Misiones",
+  "Jujuy", "Tucuman", "CABA", "Tierra del Fuego",
+];
 
 export default function MapView({ goToProfessional, professionals }) {
   const [selectedProvince, setSelectedProvince] = useState("Todas");
-  const publicProfessionals = professionals.filter((professional) => professional.active);
-  const activeProvinces = new Set(publicProfessionals.map((professional) => professional.province));
-  const visibleProfessionals = selectedProvince === "Todas"
-    ? publicProfessionals
-    : publicProfessionals.filter((professional) => professional.province === selectedProvince);
+
+  const publicProfessionals = professionals.filter((p) => p.active);
+  const activeProvinces = new Set(publicProfessionals.map((p) => p.province));
+  const visibleProfessionals =
+    selectedProvince === "Todas"
+      ? publicProfessionals
+      : publicProfessionals.filter((p) => p.province === selectedProvince);
+
+  function handleProvinceClick(province) {
+    setSelectedProvince((current) => (current === province ? "Todas" : province));
+  }
 
   return (
     <main className="page">
@@ -117,52 +62,74 @@ export default function MapView({ goToProfessional, professionals }) {
         <div>
           <p className="eyebrow">Mapa interactivo</p>
           <h2>Profesionales por provincia en Argentina</h2>
-          <p>Vista nacional propia con seleccion por provincia, resaltado visual y acceso directo a la reserva.</p>
+          <p>Seleccioná una provincia para filtrar los profesionales disponibles.</p>
         </div>
       </div>
+
       <section className="map-shell">
         <div className="map-visual">
-          <div className="map-canvas" aria-label="Mapa interactivo de la Argentina">
-            <img
-              className="argentina-map-image"
-              src="/argentina-map-reference.png"
-              alt="Mapa de Argentina con division por provincias"
-            />
-            <div className="map-overlay">
-              <div className="argentina-title">
-                <strong>Republica Argentina</strong>
-                <span>Elegi una provincia para verla destacada en rojo</span>
-              </div>
-            </div>
-            <div className="province-map-layer">
-              {argentinaProvinces.map((province) => {
-                const area = provinceMapAreas[province];
-                if (!area) return null;
-
-                return (
-                  <button
-                    key={province}
-                    type="button"
-                    className={[
-                      "province-region-button",
-                      activeProvinces.has(province) ? "has-professional" : "",
-                      selectedProvince === province ? "active" : "",
-                    ].join(" ")}
-                    style={area.label}
-                    onClick={() => setSelectedProvince(province)}
-                    title={province}
-                  >
-                    <span
-                      className="province-region-fill"
-                      style={area.region}
-                      aria-hidden="true"
-                    />
-                    <span className="province-region-label">{province}</span>
-                  </button>
-                );
-              })}
-            </div>
+          <div className="argentina-title">
+            <strong>República Argentina</strong>
+            <span>
+              {selectedProvince === "Todas"
+                ? "Tocá una provincia para filtrar"
+                : `${selectedProvince} · ${visibleProfessionals.length} profesional${visibleProfessionals.length !== 1 ? "es" : ""}`}
+            </span>
           </div>
+
+          <svg
+            className="argentina-svg"
+            viewBox="0 0 210 470"
+            aria-label="Mapa interactivo de Argentina"
+          >
+            {RENDER_ORDER.map((province) => {
+              const data = PROVINCE_DATA[province];
+              if (!data) return null;
+              const isSelected = selectedProvince === province;
+              const hasProf = activeProvinces.has(province);
+              return (
+                <polygon
+                  key={province}
+                  points={data.points}
+                  fill={isSelected ? "#d74c5d" : hasProf ? "#c2d8de" : "#cdd8db"}
+                  stroke="#8fa6ae"
+                  strokeWidth={isSelected ? 1.5 : 0.6}
+                  style={{ cursor: "pointer", transition: "fill 0.18s" }}
+                  onClick={() => handleProvinceClick(province)}
+                >
+                  <title>{province}{hasProf ? " · tiene profesionales" : ""}</title>
+                </polygon>
+              );
+            })}
+
+            {visibleProfessionals.map((professional) => {
+              const data = PROVINCE_DATA[professional.province];
+              if (!data) return null;
+              const [cx, cy] = data.pin;
+              return (
+                <g
+                  key={professional.id}
+                  onClick={() => goToProfessional(professional)}
+                  style={{ cursor: "pointer" }}
+                  aria-label={professional.name}
+                >
+                  <circle cx={cx} cy={cy} r={9} fill="#d74c5d" stroke="white" strokeWidth={1.8} />
+                  <text
+                    x={cx}
+                    y={cy + 3.5}
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize={7}
+                    fontWeight="bold"
+                    style={{ pointerEvents: "none", userSelect: "none" }}
+                  >
+                    {professional.initials.slice(0, 1)}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+
           <div className="province-grid-panel" aria-label="Provincias de Argentina">
             <button
               className={selectedProvince === "Todas" ? "province-chip active" : "province-chip"}
@@ -178,37 +145,35 @@ export default function MapView({ goToProfessional, professionals }) {
                   activeProvinces.has(province) ? "has-professional" : "",
                   selectedProvince === province ? "active" : "",
                 ].join(" ")}
-                onClick={() => setSelectedProvince(province)}
+                onClick={() => handleProvinceClick(province)}
               >
                 {province}
               </button>
             ))}
           </div>
-          {visibleProfessionals.map((professional) => (
-            <button
-              key={professional.id}
-              className="pin"
-              style={{ top: professional.coords.top, left: professional.coords.left }}
-              onClick={() => goToProfessional(professional)}
-              title={professional.name}
-            >
-              {professional.initials.slice(0, 1)}
-            </button>
-          ))}
         </div>
+
         <div className="map-list">
           {visibleProfessionals.map((professional) => (
             <article key={professional.id}>
               <h3>{professional.name}</h3>
               <p className="muted">{professional.address}</p>
               <div className="actions">
-                <button className="primary-btn" onClick={() => goToProfessional(professional)}>Reservar</button>
-                <a className="ghost-btn" href={mapsUrl(professional)} target="_blank">Como llegar</a>
+                <button className="primary-btn" onClick={() => goToProfessional(professional)}>
+                  Reservar
+                </button>
+                <a className="ghost-btn" href={mapsUrl(professional)} target="_blank" rel="noreferrer">
+                  Cómo llegar
+                </a>
               </div>
             </article>
           ))}
           {visibleProfessionals.length === 0 && (
-            <div className="empty">Todavia no hay profesionales cargados en esta provincia.</div>
+            <div className="empty">
+              {selectedProvince === "Todas"
+                ? "No hay profesionales activos."
+                : `Todavía no hay profesionales en ${selectedProvince}.`}
+            </div>
           )}
         </div>
       </section>

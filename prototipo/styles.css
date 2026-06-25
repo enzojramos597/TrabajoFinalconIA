@@ -1207,13 +1207,22 @@ textarea {
 
 .map-visual {
   position: relative;
-  min-height: 1120px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background:
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.96), transparent 28%),
     linear-gradient(180deg, #f8fbfc 0%, #eef6f7 100%);
   overflow: hidden;
+  padding: 18px 18px 200px;
+}
+
+.argentina-svg {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  margin: 48px auto 0;
+  filter: drop-shadow(0 8px 20px rgba(55, 67, 74, 0.12));
 }
 
 .map-canvas {
@@ -1307,11 +1316,21 @@ textarea {
   border: 1px solid rgba(103, 105, 144, 0.2);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.88);
+  position: relative;
+  z-index: 2;
 }
 
 .argentina-title span {
   color: var(--muted);
   font-size: 13px;
+}
+
+.argentina-svg polygon {
+  outline: none;
+}
+
+.argentina-svg polygon:hover {
+  filter: brightness(0.92);
 }
 
 .province-grid-panel {
@@ -1322,12 +1341,14 @@ textarea {
   z-index: 4;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 7px;
-  padding: 14px;
+  gap: 6px;
+  padding: 12px;
   border: 1px solid rgba(103, 105, 144, 0.18);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(6px);
+  max-height: 190px;
+  overflow-y: auto;
 }
 
 .province-chip {
