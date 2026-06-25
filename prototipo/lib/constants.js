@@ -12,7 +12,7 @@ export const initialProfessionals = [
     formation: "Licenciada en Psicopedagogía. Orientación en alfabetización inicial y apoyo escolar.",
     active: true,
     progress: 76,
-    coords: { top: "49%", left: "66%" },
+    coords: [-58.4, -34.6],
   },
   {
     id: 2,
@@ -27,7 +27,7 @@ export const initialProfessionals = [
     formation: "Psicopedagogo especializado en adolescentes, proyectos escolares y orientacion vocacional.",
     active: true,
     progress: 64,
-    coords: { top: "43%", left: "48%" },
+    coords: [-64.2, -31.4],
   },
   {
     id: 3,
@@ -42,7 +42,7 @@ export const initialProfessionals = [
     formation: "Especialista en procesos atencionales, planificación y estrategias de estudio.",
     active: true,
     progress: 82,
-    coords: { top: "52%", left: "34%" },
+    coords: [-68.8, -32.9],
   },
   {
     id: 4,
@@ -57,7 +57,7 @@ export const initialProfessionals = [
     formation: "Acompanamiento temprano, desarrollo infantil y trabajo con familias.",
     active: true,
     progress: 71,
-    coords: { top: "39%", left: "58%" },
+    coords: [-60.7, -32.9],
   },
 ];
 

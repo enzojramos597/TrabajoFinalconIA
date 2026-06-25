@@ -1216,14 +1216,6 @@ textarea {
   padding: 18px 18px 200px;
 }
 
-.argentina-svg {
-  display: block;
-  width: 100%;
-  max-width: 420px;
-  height: auto;
-  margin: 48px auto 0;
-  filter: drop-shadow(0 8px 20px rgba(55, 67, 74, 0.12));
-}
 
 .map-canvas {
   position: absolute;
