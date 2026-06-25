@@ -6,6 +6,8 @@ Aplicacion web funcional desarrollada como Trabajo Final Integrador del curso **
 
 **Repositorio:** https://github.com/enzojramos597/TrabajoFinalconIA
 
+**Documentacion visual con capturas:** [docs/DOCUMENTACION.md](../docs/DOCUMENTACION.md)
+
 ---
 
 ## Descripcion del proyecto
